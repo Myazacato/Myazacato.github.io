@@ -87,6 +87,84 @@
   const GROUND_SKY = [13, 8, 23];
   const HIGH_SKY   = [3, 18, 41];
 
+  /* ------------------------------ sprites --------------------------------
+     TO USE YOUR OWN ART: put a transparent PNG in assets/game/ and write its
+     path into `src` below. That is the whole job — everything else adapts.
+
+         plane: { src: 'assets/game/plane.png', w: 56, h: 36 },
+
+     `src: null` means "draw the built-in vector shape instead", which is also
+     what happens if the file 404s or fails to decode, so a typo degrades to
+     the old look rather than an empty screen. Paths start out null so the
+     browser is not chasing files that do not exist yet.
+
+     `w`/`h` are the on-canvas size within the 960x540 frame. The image is
+     scaled to fit, so any source resolution works — 2x or 3x art just looks
+     sharper on high-DPI screens. Match the aspect ratio or it will stretch.
+
+     The plane sprite should face right and sit centred in its image: it is
+     drawn around its centre and rotated to the climb angle.
+     ---------------------------------------------------------------------- */
+
+  const SPRITES = {
+    plane: { src: null, w: 56, h: 36 },   // e.g. 'assets/game/plane.png'
+    coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
+    fuel:  { src: null, w: 30, h: 36 },   // e.g. 'assets/game/fuel.png'
+  };
+
+  // Each entry gains .img (an Image) and .ready (true once it decodes).
+  Object.keys(SPRITES).forEach((key) => {
+    const s = SPRITES[key];
+    s.ready = false;
+    if (!s.src) return;
+    const img = new Image();
+    img.addEventListener('load', () => { s.ready = img.naturalWidth > 0; });
+    img.addEventListener('error', () => {
+      s.ready = false;
+      console.warn(`[Diana] sprite "${key}" could not load from ${s.src} — using the drawn shape.`);
+    });
+    img.src = s.src;
+    s.img = img;
+  });
+
+  // Draws a sprite centred on (x, y). Returns false when it is not usable, so
+  // callers can fall through to the drawn shape.
+  function sprite(key, x, y) {
+    const s = SPRITES[key];
+    if (!s || !s.ready) return false;
+    ctx.drawImage(s.img, x - s.w / 2, y - s.h / 2, s.w, s.h);
+    return true;
+  }
+
+  /* Tinting has to happen on its own buffer. Compositing a colour straight
+     onto the main canvas with 'source-atop' would tint everything already
+     painted there — the sky included — because that is opaque too. Drawing the
+     sprite alone into a scratch canvas gives the tint an alpha mask to respect. */
+  const tintCanvas = document.createElement('canvas');
+  const tintCtx = tintCanvas.getContext('2d');
+
+  function spriteTinted(key, x, y, color, strength) {
+    const s = SPRITES[key];
+    if (!s || !s.ready) return false;
+    if (strength <= 0.02) return sprite(key, x, y);
+
+    if (tintCanvas.width !== s.w || tintCanvas.height !== s.h) {
+      tintCanvas.width = s.w;
+      tintCanvas.height = s.h;
+    }
+    tintCtx.clearRect(0, 0, s.w, s.h);
+    tintCtx.globalCompositeOperation = 'source-over';
+    tintCtx.drawImage(s.img, 0, 0, s.w, s.h);
+    tintCtx.globalCompositeOperation = 'source-atop';   // masked by the sprite
+    tintCtx.fillStyle = color;
+    tintCtx.globalAlpha = strength;
+    tintCtx.fillRect(0, 0, s.w, s.h);
+    tintCtx.globalAlpha = 1;
+
+    ctx.drawImage(tintCanvas, x - s.w / 2, y - s.h / 2);
+    return true;
+  }
+
   /* --------------------------- authored chunks --------------------------- */
   /* {dx, y, t} — dx is pixels from the chunk's leading edge, y is absolute.
      Coins trace the line you are meant to fly, or bait you into a worse one. */
@@ -103,11 +181,14 @@
       { dx: 420, y: 320, t: 'coin' }, { dx: 490, y: 370, t: 'coin' },
       { dx: 560, y: 420, t: 'coin' },
       { dx: 280, y: 170, t: 'fuel' }, { dx: 140, y: 210, t: 'fuel' },
-      { dx: 420, y: 210, t: 'fuel' },
+      { dx: 420, y: 210, t: 'fuel' }, { dx:  70, y: 300, t: 'fuel' },
+      { dx: 490, y: 300, t: 'fuel' }, { dx: 350, y: 175, t: 'fuel' },
     ]},
     { name: 'refuel_lane', difficulty: 0, length: 620, entries: [
       { dx:   0, y: 300, t: 'fuel' }, { dx: 200, y: 250, t: 'fuel' },
       { dx: 400, y: 200, t: 'fuel' }, { dx: 560, y: 250, t: 'fuel' },
+      { dx: 100, y: 180, t: 'fuel' }, { dx: 300, y: 150, t: 'fuel' },
+      { dx: 480, y: 320, t: 'fuel' },
       { dx: 100, y: 380, t: 'coin' },
       { dx: 300, y: 340, t: 'coin' }, { dx: 500, y: 300, t: 'coin' },
     ]},
@@ -118,7 +199,8 @@
       { dx: 520, y: 452, t: 'tramp' },
       // At the apex of each bounce, so a good hop pays for itself.
       { dx: 170, y: 205, t: 'fuel' }, { dx: 430, y: 205, t: 'fuel' },
-      { dx: 580, y: 320, t: 'fuel' },
+      { dx: 580, y: 320, t: 'fuel' }, { dx:  60, y: 400, t: 'fuel' },
+      { dx: 330, y: 400, t: 'fuel' }, { dx: 620, y: 230, t: 'fuel' },
     ]},
     { name: 'low_road', difficulty: 1, length: 660, entries: [
       { dx: 120, y: 170, t: 'zapper_h' }, { dx: 380, y: 170, t: 'zapper_h' },
@@ -126,7 +208,8 @@
       { dx: 260, y: 400, t: 'coin' }, { dx: 340, y: 400, t: 'coin' },
       { dx: 420, y: 400, t: 'coin' },
       { dx:  40, y: 400, t: 'fuel' }, { dx: 500, y: 400, t: 'fuel' },
-      { dx: 240, y: 448, t: 'fuel' },
+      { dx: 240, y: 448, t: 'fuel' }, { dx: 140, y: 448, t: 'fuel' },
+      { dx: 340, y: 448, t: 'fuel' }, { dx: 600, y: 400, t: 'fuel' },
     ]},
     { name: 'high_road', difficulty: 1, length: 660, entries: [
       { dx: 120, y: 400, t: 'zapper_h' }, { dx: 380, y: 400, t: 'zapper_h' },
@@ -134,7 +217,8 @@
       { dx: 260, y: 160, t: 'coin' }, { dx: 340, y: 160, t: 'coin' },
       { dx: 420, y: 160, t: 'coin' },
       { dx:  40, y: 160, t: 'fuel' }, { dx: 500, y: 160, t: 'fuel' },
-      { dx: 240, y: 108, t: 'fuel' },
+      { dx: 240, y: 108, t: 'fuel' }, { dx: 140, y: 215, t: 'fuel' },
+      { dx: 340, y: 215, t: 'fuel' }, { dx: 600, y: 160, t: 'fuel' },
     ]},
     { name: 'pillar_gate', difficulty: 2, length: 720, entries: [
       { dx:   0, y: 120, t: 'zapper_v' }, { dx: 240, y: 400, t: 'zapper_v' },
@@ -143,7 +227,8 @@
       { dx: 600, y: 300, t: 'coin' },
       // In the gaps between pillars, where you have to weave anyway.
       { dx: 120, y: 380, t: 'fuel' }, { dx: 360, y: 160, t: 'fuel' },
-      { dx: 600, y: 180, t: 'fuel' },
+      { dx: 600, y: 180, t: 'fuel' }, { dx:  60, y: 300, t: 'fuel' },
+      { dx: 300, y: 240, t: 'fuel' }, { dx: 540, y: 300, t: 'fuel' },
     ]},
     { name: 'the_pinch', difficulty: 2, length: 700, entries: [
       { dx: 100, y: 140, t: 'zapper_h' }, { dx: 100, y: 430, t: 'zapper_h' },
@@ -153,7 +238,8 @@
       // Dead centre of each pinch — the only safe line through is also the
       // one that refuels you.
       { dx: 100, y: 290, t: 'fuel' }, { dx: 420, y: 290, t: 'fuel' },
-      { dx: 600, y: 290, t: 'fuel' },
+      { dx: 600, y: 290, t: 'fuel' }, { dx: 240, y: 240, t: 'fuel' },
+      { dx: 240, y: 345, t: 'fuel' }, { dx: 560, y: 240, t: 'fuel' },
     ]},
     { name: 'greed_shelf', difficulty: 2, length: 680, entries: [
       { dx: 150, y: 300, t: 'zapper_h' }, { dx: 430, y: 300, t: 'zapper_h' },
@@ -163,7 +249,8 @@
       { dx: 470, y: 130, t: 'coin' },
       // Fuel on the safe road below, so taking the greedy line costs you range.
       { dx: 300, y: 430, t: 'fuel' }, { dx:  40, y: 430, t: 'fuel' },
-      { dx: 560, y: 430, t: 'fuel' },
+      { dx: 560, y: 430, t: 'fuel' }, { dx: 180, y: 430, t: 'fuel' },
+      { dx: 440, y: 430, t: 'fuel' }, { dx: 640, y: 380, t: 'fuel' },
     ]},
   ];
 
@@ -601,6 +688,14 @@
       case 'coin': {
         const sq = Math.abs(Math.cos(e.spin));
         glow('#ffd75c', 14, () => {
+          // A custom coin sprite keeps the spin by squashing horizontally,
+          // exactly as the drawn one does.
+          if (SPRITES.coin.ready) {
+            const s = SPRITES.coin;
+            const w = s.w * (0.35 + sq * 0.65);
+            ctx.drawImage(s.img, e.x - w / 2, e.y - s.h / 2, w, s.h);
+            return;
+          }
           ctx.fillStyle = '#ffd75c';
           ctx.beginPath();
           ctx.ellipse(e.x, e.y, e.r * (0.35 + sq * 0.65), e.r, 0, 0, 6.2832);
@@ -610,6 +705,7 @@
       }
       case 'fuel': {
         glow('#5cff9d', 16, () => {
+          if (sprite('fuel', e.x, e.y)) return;
           ctx.strokeStyle = '#5cff9d';
           ctx.lineWidth = 2.5;
           ctx.strokeRect(e.x - 11, e.y - 14, 22, 28);
@@ -676,7 +772,15 @@
     ctx.translate(x, y);
     ctx.rotate(tilt);
 
+    const dmgFrac = 1 - S.cargo / CARGO_MAX;
+
     glow('#00f0ff', 18, () => {
+      // A custom sprite replaces the whole craft. It is already inside the
+      // translate/rotate, so it banks with the flight angle for free, and it
+      // flushes red as cargo drops so a sprite does not cost you the damage
+      // feedback the drawn shapes gave.
+      if (spriteTinted('plane', 0, 0, '#ff4d6d', dmgFrac * 0.6)) return;
+
       ctx.fillStyle = '#d1e6ff';
       ctx.beginPath();
       ctx.moveTo(22, 0); ctx.lineTo(-14, -11); ctx.lineTo(-9, 0); ctx.lineTo(-14, 11);
