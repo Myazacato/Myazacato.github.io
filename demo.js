@@ -40,7 +40,9 @@
   const SPEED_RAMP_TAU    = 22;
   const SPEED_CREEP       = 3.4;
   const PIXELS_PER_METER  = BASE_SCROLL_SPEED / 60;
-  const SPEED_MULT        = 0.9;
+  // Overall pace. Scales the whole curve, so the lane opens faster and keeps
+  // its shape. Also means chunks — and the canisters in them — arrive sooner.
+  const SPEED_MULT        = 1.1;
 
   // Cargo is the health bar now — at zero the run is over. Halved from the
   // original 100, so everything that damages you hurts twice as much.
@@ -64,7 +66,7 @@
   const FUEL_MAX          = 100;
   const FUEL_DRAIN_IDLE   = 4.2 * FUEL_ECONOMY;
   const FUEL_DRAIN_THRUST = 11.0 * FUEL_ECONOMY;
-  const FUEL_PICKUP_GAIN  = 26;
+  const FUEL_PICKUP_GAIN  = 34;
 
   // Scoring. Distance is banked through the Momentum multiplier, so flying
   // clean is worth more than flying far.
@@ -89,55 +91,79 @@
   /* {dx, y, t} — dx is pixels from the chunk's leading edge, y is absolute.
      Coins trace the line you are meant to fly, or bait you into a worse one. */
 
+  /* Canisters sit on the line the coins already describe, or just off it as a
+     tempting detour — same rule as the coins. Two or three per chunk, so the
+     tank is topped up by flying the pattern well rather than by luck. */
+
   const CHUNKS = [
     { name: 'coin_arc', difficulty: 0, length: 640, entries: [
       { dx:   0, y: 420, t: 'coin' }, { dx:  70, y: 370, t: 'coin' },
       { dx: 140, y: 320, t: 'coin' }, { dx: 210, y: 285, t: 'coin' },
       { dx: 280, y: 270, t: 'coin' }, { dx: 350, y: 285, t: 'coin' },
       { dx: 420, y: 320, t: 'coin' }, { dx: 490, y: 370, t: 'coin' },
-      { dx: 560, y: 420, t: 'coin' }, { dx: 280, y: 170, t: 'fuel' },
+      { dx: 560, y: 420, t: 'coin' },
+      { dx: 280, y: 170, t: 'fuel' }, { dx: 140, y: 210, t: 'fuel' },
+      { dx: 420, y: 210, t: 'fuel' },
     ]},
     { name: 'refuel_lane', difficulty: 0, length: 620, entries: [
       { dx:   0, y: 300, t: 'fuel' }, { dx: 200, y: 250, t: 'fuel' },
-      { dx: 400, y: 200, t: 'fuel' }, { dx: 100, y: 380, t: 'coin' },
+      { dx: 400, y: 200, t: 'fuel' }, { dx: 560, y: 250, t: 'fuel' },
+      { dx: 100, y: 380, t: 'coin' },
       { dx: 300, y: 340, t: 'coin' }, { dx: 500, y: 300, t: 'coin' },
     ]},
     { name: 'hop_pads', difficulty: 1, length: 700, entries: [
       { dx:   0, y: 452, t: 'tramp' }, { dx:  60, y: 330, t: 'coin' },
       { dx: 120, y: 260, t: 'coin' },  { dx: 260, y: 452, t: 'tramp' },
       { dx: 320, y: 330, t: 'coin' },  { dx: 380, y: 260, t: 'coin' },
-      { dx: 520, y: 452, t: 'tramp' }, { dx: 580, y: 320, t: 'fuel' },
+      { dx: 520, y: 452, t: 'tramp' },
+      // At the apex of each bounce, so a good hop pays for itself.
+      { dx: 170, y: 205, t: 'fuel' }, { dx: 430, y: 205, t: 'fuel' },
+      { dx: 580, y: 320, t: 'fuel' },
     ]},
     { name: 'low_road', difficulty: 1, length: 660, entries: [
       { dx: 120, y: 170, t: 'zapper_h' }, { dx: 380, y: 170, t: 'zapper_h' },
       { dx: 100, y: 400, t: 'coin' }, { dx: 180, y: 400, t: 'coin' },
       { dx: 260, y: 400, t: 'coin' }, { dx: 340, y: 400, t: 'coin' },
-      { dx: 420, y: 400, t: 'coin' }, { dx: 500, y: 400, t: 'fuel' },
+      { dx: 420, y: 400, t: 'coin' },
+      { dx:  40, y: 400, t: 'fuel' }, { dx: 500, y: 400, t: 'fuel' },
+      { dx: 240, y: 448, t: 'fuel' },
     ]},
     { name: 'high_road', difficulty: 1, length: 660, entries: [
       { dx: 120, y: 400, t: 'zapper_h' }, { dx: 380, y: 400, t: 'zapper_h' },
       { dx: 100, y: 160, t: 'coin' }, { dx: 180, y: 160, t: 'coin' },
       { dx: 260, y: 160, t: 'coin' }, { dx: 340, y: 160, t: 'coin' },
-      { dx: 420, y: 160, t: 'coin' }, { dx: 500, y: 160, t: 'fuel' },
+      { dx: 420, y: 160, t: 'coin' },
+      { dx:  40, y: 160, t: 'fuel' }, { dx: 500, y: 160, t: 'fuel' },
+      { dx: 240, y: 108, t: 'fuel' },
     ]},
     { name: 'pillar_gate', difficulty: 2, length: 720, entries: [
       { dx:   0, y: 120, t: 'zapper_v' }, { dx: 240, y: 400, t: 'zapper_v' },
       { dx: 480, y: 120, t: 'zapper_v' },
       { dx: 120, y: 300, t: 'coin' }, { dx: 360, y: 240, t: 'coin' },
-      { dx: 600, y: 300, t: 'coin' }, { dx: 600, y: 180, t: 'fuel' },
+      { dx: 600, y: 300, t: 'coin' },
+      // In the gaps between pillars, where you have to weave anyway.
+      { dx: 120, y: 380, t: 'fuel' }, { dx: 360, y: 160, t: 'fuel' },
+      { dx: 600, y: 180, t: 'fuel' },
     ]},
     { name: 'the_pinch', difficulty: 2, length: 700, entries: [
       { dx: 100, y: 140, t: 'zapper_h' }, { dx: 100, y: 430, t: 'zapper_h' },
       { dx: 420, y: 140, t: 'zapper_h' }, { dx: 420, y: 430, t: 'zapper_h' },
       { dx: 200, y: 290, t: 'coin' }, { dx: 280, y: 290, t: 'coin' },
-      { dx: 520, y: 290, t: 'coin' }, { dx: 600, y: 290, t: 'fuel' },
+      { dx: 520, y: 290, t: 'coin' },
+      // Dead centre of each pinch — the only safe line through is also the
+      // one that refuels you.
+      { dx: 100, y: 290, t: 'fuel' }, { dx: 420, y: 290, t: 'fuel' },
+      { dx: 600, y: 290, t: 'fuel' },
     ]},
     { name: 'greed_shelf', difficulty: 2, length: 680, entries: [
       { dx: 150, y: 300, t: 'zapper_h' }, { dx: 430, y: 300, t: 'zapper_h' },
       // The good money sits behind the beams. That is the bait.
       { dx: 150, y: 130, t: 'coin' }, { dx: 230, y: 120, t: 'coin' },
       { dx: 310, y: 115, t: 'coin' }, { dx: 390, y: 120, t: 'coin' },
-      { dx: 470, y: 130, t: 'coin' }, { dx: 300, y: 430, t: 'fuel' },
+      { dx: 470, y: 130, t: 'coin' },
+      // Fuel on the safe road below, so taking the greedy line costs you range.
+      { dx: 300, y: 430, t: 'fuel' }, { dx:  40, y: 430, t: 'fuel' },
+      { dx: 560, y: 430, t: 'fuel' },
     ]},
   ];
 
