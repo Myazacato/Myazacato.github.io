@@ -42,22 +42,25 @@
   const PIXELS_PER_METER  = BASE_SCROLL_SPEED / 60;
   const SPEED_MULT        = 0.9;
 
-  // Cargo is the health bar now — at zero the run is over.
-  const CARGO_MAX            = 100;
+  // Cargo is the health bar now — at zero the run is over. Halved from the
+  // original 100, so everything that damages you hurts twice as much.
+  const CARGO_MAX            = 50;
   const CARGO_HAZARD_DAMAGE  = 18;
   const CARGO_BOUNCE_DAMAGE  = 10;
   const CARGO_HIGH_G_THRESH  = 350;
   const CARGO_HIGH_G_DRAIN   = 8;
 
   // Sitting on the deck grinds the cargo down for as long as you stay there.
-  // Roughly four and a half seconds from full to dead, so the floor is a place
-  // you pass through, never a place you rest.
+  // Against the halved cargo pool that is a bit over two seconds from full to
+  // dead, so the floor is a place you pass through, never a place you rest.
   const GROUND_BAND          = 6;    // px above FLOOR that still counts as grounded
   const CARGO_GROUND_DRAIN   = 22;   // per second
 
-  // Fuel burns at a quarter of the old rate, so a tank is worth 4x the flying.
-  // Flip FUEL_ECONOMY back to 1 to restore the original burn.
-  const FUEL_ECONOMY      = 0.25;
+  // Fuel burns four times faster than the original rate, so a tank lasts a
+  // quarter as long and canisters become the thing you fly toward rather than
+  // a bonus you pick up in passing. FUEL_ECONOMY is the single knob: 1 restores
+  // the original burn, lower makes fuel go further.
+  const FUEL_ECONOMY      = 4;
   const FUEL_MAX          = 100;
   const FUEL_DRAIN_IDLE   = 4.2 * FUEL_ECONOMY;
   const FUEL_DRAIN_THRUST = 11.0 * FUEL_ECONOMY;
