@@ -137,7 +137,11 @@
      ---------------------------------------------------------------------- */
 
   const SPRITES = {
-    plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12 },
+    // `rotate` is a fixed pose angle in degrees, clockwise, applied on top of
+    // the bank angle. The run cycle is drawn standing upright; leaning it over
+    // turns the stance into a forward flight pose without redrawing anything.
+    // 0 stands her up, 90 lays her flat.
+    plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12, rotate: 62 },
     coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
     fuel:  { src: null, w: 30, h: 36 },   // e.g. 'assets/game/fuel.png'
   };
@@ -862,7 +866,9 @@
     ctx.translate(x, y);
     ctx.rotate(tilt);
 
-    // Behind the character, so she sits on top of her own exhaust.
+    // Behind the character, so she sits on top of her own exhaust. Drawn
+    // before the pose rotation, so the exhaust keeps streaming straight back
+    // along the direction of travel however far she is leaned over.
     drawFlame();
 
     const dmgFrac = 1 - S.cargo / CARGO_MAX;
@@ -873,7 +879,10 @@
     // sprite sits inside the translate/rotate, so it banks with the flight
     // angle for free, and it flushes red as cargo drops so switching to art
     // does not cost the damage feedback the shapes gave.
+    const pose = (SPRITES.plane.rotate || 0) * Math.PI / 180;
+    if (pose) ctx.rotate(pose);
     if (!spriteTinted('plane', 0, 0, '#ff4d6d', dmgFrac * 0.6)) {
+      if (pose) ctx.rotate(-pose);   // the drawn fallback stands upright
       glow('#00f0ff', 18, () => {
         ctx.fillStyle = '#d1e6ff';
         ctx.beginPath();
