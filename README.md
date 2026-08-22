@@ -77,6 +77,22 @@ npx serve .
 
 Then open the URL it prints. Any static server works.
 
+## After editing style.css, site.js or demo.js — bump the version
+
+`index.html` loads them with a query string:
+
+```html
+<link rel="stylesheet" href="style.css?v=2">
+<script src="site.js?v=2"></script>
+<script src="demo.js?v=2"></script>
+```
+
+GitHub Pages tells browsers to cache assets for ten minutes, so without this a
+returning visitor can get the new HTML with the old JavaScript — which breaks in
+confusing ways. **Bump every `?v=` number together** (to `v=3`, then `v=4`, …)
+whenever you change any of those three files. Editing only `index.html` needs no
+bump.
+
 ## Deploying
 
 The site is a GitHub Pages *user site*, which requires the repository to be

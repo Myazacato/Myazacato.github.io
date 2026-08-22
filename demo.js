@@ -1,15 +1,18 @@
 /* ==========================================================================
    Diana — browser demo
    --------------------------------------------------------------------------
-   A condensed version of the Godot build's flight scene. The numbers here are
-   lifted from the real game so the feel carries over:
+   An endless arcade run built from the Godot project's flight scene. Shared
+   with the real game:
 
-     - speed curve      : fast ramp -> shoulder -> endless creep
-     - chunk spawner    : authored patterns emitted on distance, with a
-                          guaranteed breather every few chunks
-     - cargo integrity  : hazards and hard bounces degrade the cargo, and the
-                          delivery grade decides both the pay share and the rep
-     - coins            : the pathing language, never scattered at random
+     - speed curve    : fast ramp -> shoulder -> endless creep
+     - chunk spawner  : authored patterns emitted on distance, with a
+                        guaranteed breather every few chunks
+     - coins          : the pathing language, never scattered at random
+     - radio chatter  : the dispatch lines, spoken by the captain
+
+   Differs from the Godot build on purpose: there is no contract to complete
+   and no delivery grade. The run is endless and scored, cargo integrity is
+   the health bar, and the floor is lethal to linger on.
 
    No dependencies, no build step. One file.
    ========================================================================== */
@@ -30,49 +33,45 @@
   const PLAY_TOP = 62;
   const FLOOR    = 486;
 
-  // Speed curve, straight from the Godot build.
+  // Speed curve, straight from the Godot build. The creep never stops, so the
+  // lane is what eventually ends an endless run.
   const BASE_SCROLL_SPEED = 220;
   const MAX_SCROLL_SPEED  = 480;
   const SPEED_RAMP_TAU    = 22;
   const SPEED_CREEP       = 3.4;
   const PIXELS_PER_METER  = BASE_SCROLL_SPEED / 60;
+  const SPEED_MULT        = 0.9;
 
-  // Contract 01 — "Seed Run". Target extended a little for the demo so the
-  // speed ramp has room to actually show itself.
-  const PAY_PER_METER   = 0.40;
-  const FUEL_DRAIN_MULT = 0.8;
-  const SPEED_MULT      = 0.9;
-  const DISTANCE_TARGET = 900;
-
-  // Cargo model.
+  // Cargo is the health bar now — at zero the run is over.
   const CARGO_MAX            = 100;
   const CARGO_HAZARD_DAMAGE  = 18;
   const CARGO_BOUNCE_DAMAGE  = 10;
   const CARGO_HIGH_G_THRESH  = 350;
   const CARGO_HIGH_G_DRAIN   = 8;
 
-  const GRADES = [
-    { grade: 'S', min: 90, pay: 1.00, rep: 25, color: '#00f0ff' },
-    { grade: 'A', min: 75, pay: 0.80, rep: 15, color: '#5cff9d' },
-    { grade: 'B', min: 55, pay: 0.60, rep:  8, color: '#ffd75c' },
-    { grade: 'C', min: 30, pay: 0.40, rep:  3, color: '#ff9d3d' },
-    { grade: 'F', min:  0, pay: 0.25, rep:  0, color: '#ff4d6d' },
-  ];
-  const gradeFor = (integrity) => GRADES.find(g => integrity >= g.min) || GRADES[GRADES.length - 1];
+  // Sitting on the deck grinds the cargo down for as long as you stay there.
+  // Roughly four and a half seconds from full to dead, so the floor is a place
+  // you pass through, never a place you rest.
+  const GROUND_BAND          = 6;    // px above FLOOR that still counts as grounded
+  const CARGO_GROUND_DRAIN   = 22;   // per second
 
-  const COMPLETION_BONUS_MULT = 1.25;
+  // Fuel burns at a quarter of the old rate, so a tank is worth 4x the flying.
+  // Flip FUEL_ECONOMY back to 1 to restore the original burn.
+  const FUEL_ECONOMY      = 0.25;
+  const FUEL_MAX          = 100;
+  const FUEL_DRAIN_IDLE   = 4.2 * FUEL_ECONOMY;
+  const FUEL_DRAIN_THRUST = 11.0 * FUEL_ECONOMY;
+  const FUEL_PICKUP_GAIN  = 26;
+
+  // Scoring. Distance is banked through the Momentum multiplier, so flying
+  // clean is worth more than flying far.
+  const SEED_POINTS = 25;
 
   // Flight physics.
   const GRAVITY     = 1500;
   const THRUST      = -2750;
   const VEL_CLAMP   = 700;
   const TRAMP_BOOST = -780;
-
-  // Fuel.
-  const FUEL_MAX          = 100;
-  const FUEL_DRAIN_IDLE   = 4.2;
-  const FUEL_DRAIN_THRUST = 11.0;
-  const FUEL_PICKUP_GAIN  = 26;
 
   // Spawner.
   const SPAWN_X = W + 90;
@@ -142,14 +141,106 @@
   const BREATHERS = CHUNKS.filter(c => c.difficulty === 0);
   const PRESSURE  = CHUNKS.filter(c => c.difficulty > 0);
 
+  /* ------------------------- the captain's lines -------------------------
+     The dispatch chatter is lifted from the Godot build; the reactive lines
+     are new, because the browser run has states the real game does not.
+     ---------------------------------------------------------------------- */
+
+  const LINES = {
+    start: [
+      "Don't crash this one, I already told the boss it'd be fine.",
+      "Cargo's fragile. Try not to loop-the-loop this time.",
+      "Bring the cargo back in one piece and I'll purr about it.",
+      "I've seen the forecast. You won't like the forecast.",
+    ],
+    idle: [
+      "Storm cell ahead — actually, you're already in it.",
+      "Everything's fine. Probably.",
+      "Don't tell the boss about the birds.",
+      "Is that smoke? That's probably normal.",
+      "I'm not panicking, why are you panicking.",
+      "Nice line. I'll pretend that was on purpose.",
+    ],
+    hit: [
+      "That's coming out of your seed deposit.",
+      "I felt that from here.",
+      "The crates are making a noise. A bad noise.",
+      "Please stop hitting things.",
+    ],
+    ground: [
+      "You're scraping the deck! Pull up!",
+      "The cargo is grinding. UP. Now.",
+      "That's the floor. We do not like the floor.",
+    ],
+    fuel: [
+      "Fuel's low. I'd find a canister.",
+      "Running dry — start looking up.",
+    ],
+    far: [
+      "Still flying. Genuinely surprised.",
+      "This is the furthest anyone's got today.",
+      "The boss just asked who's flying. I said nobody.",
+    ],
+    dead: [
+      "Well. That happened.",
+      "I'm filing this one under 'learning experience'.",
+      "I'll get the mop.",
+    ],
+    record: [
+      "That's a record. Sign the board.",
+      "Best run I've seen. Put your name on it.",
+    ],
+  };
+
+  /* ---------------------------- high scores ------------------------------
+     Saved in this browser's localStorage: each visitor keeps their own board,
+     on their own device. There is no shared server, so nothing syncs between
+     people — a global leaderboard would need a backend a static site cannot
+     provide on its own.
+     ---------------------------------------------------------------------- */
+
+  const STORE_KEY = 'diana.scores.v1';
+  const BOARD_SIZE = 5;
+
+  function loadBoard() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(e => e && typeof e.score === 'number' && typeof e.name === 'string')
+        .sort((a, b) => b.score - a.score)
+        .slice(0, BOARD_SIZE);
+    } catch (e) {
+      // Private browsing, disabled storage, corrupt JSON — a demo should still
+      // be playable, it just will not remember anything.
+      return [];
+    }
+  }
+
+  function saveBoard(board) {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(board));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  let board = loadBoard();
+  const bestScore = () => (board.length ? board[0].score : 0);
+  const qualifies = (score) =>
+    score > 0 && (board.length < BOARD_SIZE || score > board[board.length - 1].score);
+
   /* ------------------------------ state --------------------------------- */
 
   let S = null;
   let running = false;
   let lastTime = 0;
   let holding = false;
-  let startArmed = true;       // a run may only start on a fresh key/pointer press
-  let resultsLockUntil = 0;    // brief window after a run where input cannot restart it
+  let startArmed = true;
+  let resultsLockUntil = 0;
 
   const stars = Array.from({ length: 90 }, () => ({
     x: Math.random() * W,
@@ -163,6 +254,7 @@
       t: 0,
       scrolled: 0,
       distance: 0,
+      score: 0,
       speed: BASE_SCROLL_SPEED * SPEED_MULT,
       planeY: 300,
       vel: 0,
@@ -171,22 +263,57 @@
       seeds: 0,
       momentum: 1.0,
       lastDamageDist: 0,
+      grounded: false,
+      groundedFor: 0,
       ents: [],
       particles: [],
       nextChunkAt: 260,
       chunksSinceBreather: 0,
-      finishSpawned: false,
       over: false,
       shake: 0,
       flash: 0,
       trail: [],
+      nextIdleLine: 6,
+      nextMilestone: 800,
+      warnedFuel: false,
     };
+  }
+
+  /* ------------------------------ captain -------------------------------- */
+
+  const capBubble = document.getElementById('cap-line');
+  const capPortrait = document.getElementById('cap-portrait');
+  // The mood styling hangs off .captain, not off the bubble — the CSS selectors
+  // are `.captain[data-mood=...]`, so setting it anywhere else silently does
+  // nothing.
+  const capPanel = document.querySelector('.captain');
+  let sayLockUntil = 0;
+
+  function say(kind, opts) {
+    const o = opts || {};
+    const now = performance.now();
+    if (!o.force && now < sayLockUntil) return;
+    const pool = LINES[kind];
+    if (!pool || !capBubble) return;
+    capBubble.textContent = pool[(Math.random() * pool.length) | 0];
+    sayLockUntil = now + (o.hold || 2600);
+    if (capPortrait) {
+      capPortrait.classList.remove('talking');
+      // Reflow so the animation restarts even on back-to-back lines.
+      void capPortrait.offsetWidth;
+      capPortrait.classList.add('talking');
+    }
+    if (capPanel) {
+      capPanel.dataset.mood =
+        (kind === 'hit' || kind === 'ground' || kind === 'dead') ? 'alarm'
+        : (kind === 'record') ? 'good' : 'calm';
+    }
   }
 
   /* ---------------------------- spawning -------------------------------- */
 
   function maybeSpawnChunk() {
-    if (S.scrolled < S.nextChunkAt || S.finishSpawned) return;
+    if (S.scrolled < S.nextChunkAt) return;
 
     // Force a breather regularly so pressure has somewhere to release.
     let chunk;
@@ -214,20 +341,16 @@
     }
   }
 
-  function spawnFinish() {
-    S.finishSpawned = true;
-    S.ents.push({ t: 'finish', x: SPAWN_X, y: PLAY_TOP, w: 18, h: FLOOR - PLAY_TOP, dead: false });
-  }
-
   /* ----------------------------- update --------------------------------- */
 
-  function damageCargo(amount) {
+  function damageCargo(amount, quiet) {
     if (S.over) return;
     S.cargo = Math.max(0, S.cargo - amount);
     S.momentum = 1.0;              // Momentum Bank resets the moment you take a hit.
     S.lastDamageDist = S.distance;
     S.shake = Math.min(16, S.shake + 11);
     S.flash = 0.5;
+    if (!quiet) say('hit');
     for (let i = 0; i < 14; i++) {
       S.particles.push({
         x: PLANE_X, y: S.planeY,
@@ -235,18 +358,20 @@
         life: 0.5 + Math.random() * 0.35, max: 0.85, c: '#ff4d6d',
       });
     }
+    if (S.cargo <= 0) finish();
   }
 
   function update(dt) {
     S.t += dt;
 
-    // Speed: fast ramp, easing shoulder, then a creep that never stops.
     const ramp = (MAX_SCROLL_SPEED - BASE_SCROLL_SPEED) * (1 - Math.exp(-S.t / SPEED_RAMP_TAU));
     S.speed = (BASE_SCROLL_SPEED + ramp + SPEED_CREEP * S.t) * SPEED_MULT;
 
     const dx = S.speed * dt;
     S.scrolled += dx;
-    S.distance = S.scrolled / PIXELS_PER_METER;
+    const metres = dx / PIXELS_PER_METER;
+    S.distance += metres;
+    S.score += metres * S.momentum;
 
     // Momentum Bank: ratchets while you stay undamaged.
     if (S.distance - S.lastDamageDist > 120) {
@@ -259,33 +384,53 @@
     S.vel = Math.max(-VEL_CLAMP, Math.min(VEL_CLAMP, S.vel));
     S.planeY += S.vel * dt;
 
-    // Ceiling pushes back rather than stopping dead; floor is a hard bounce.
     if (S.planeY < PLAY_TOP) { S.planeY = PLAY_TOP; S.vel = Math.max(S.vel, 120); }
     if (S.planeY > FLOOR) {
       S.planeY = FLOOR;
       if (S.vel > CARGO_HIGH_G_THRESH) damageCargo(CARGO_BOUNCE_DAMAGE);
       S.vel = -Math.abs(S.vel) * 0.28;
     }
+    if (S.over) return;
+
+    /* --- the deck grinds the cargo down for as long as you sit on it --- */
+    S.grounded = S.planeY >= FLOOR - GROUND_BAND;
+    if (S.grounded) {
+      S.groundedFor += dt;
+      S.cargo = Math.max(0, S.cargo - CARGO_GROUND_DRAIN * dt);
+      S.shake = Math.min(9, S.shake + dt * 26);
+      if (S.groundedFor > 0.35) say('ground', { hold: 1800 });
+      if (S.cargo <= 0) { finish(); return; }
+    } else {
+      S.groundedFor = 0;
+    }
 
     // Sustained high-G flying wears the cargo down even without a collision.
     if (Math.abs(S.vel) > CARGO_HIGH_G_THRESH) {
       S.cargo = Math.max(0, S.cargo - CARGO_HIGH_G_DRAIN * dt);
+      if (S.cargo <= 0) { finish(); return; }
     }
 
     /* --- fuel --- */
-    S.fuel -= (canThrust ? FUEL_DRAIN_THRUST : FUEL_DRAIN_IDLE) * FUEL_DRAIN_MULT * dt;
+    S.fuel -= (canThrust ? FUEL_DRAIN_THRUST : FUEL_DRAIN_IDLE) * dt;
     S.fuel = Math.max(0, S.fuel);
+    if (S.fuel < 25 && !S.warnedFuel) { S.warnedFuel = true; say('fuel'); }
+    if (S.fuel > 45) S.warnedFuel = false;
+
+    /* --- chatter --- */
+    if (S.t > S.nextIdleLine) {
+      S.nextIdleLine = S.t + 9 + Math.random() * 7;
+      if (!S.grounded) say('idle', { hold: 2200 });
+    }
+    if (S.distance > S.nextMilestone) {
+      S.nextMilestone += 800;
+      say('far', { force: true });
+    }
 
     /* --- trail --- */
     S.trail.unshift({ y: S.planeY, thrust: canThrust });
     if (S.trail.length > 22) S.trail.pop();
 
-    /* --- spawn --- */
     maybeSpawnChunk();
-    // Spawn the drop zone early enough that it reaches the plane exactly as the
-    // odometer hits the target, rather than however long it takes to fly in.
-    const RUNWAY_METERS = (SPAWN_X - PLANE_X) / PIXELS_PER_METER;
-    if (!S.finishSpawned && S.distance >= DISTANCE_TARGET - RUNWAY_METERS) spawnFinish();
 
     /* --- entities --- */
     const px = PLANE_X, pr = 17;
@@ -299,6 +444,7 @@
         if (Math.hypot(e.x - px, e.y - S.planeY) < e.r + pr) {
           e.dead = true;
           S.seeds++;
+          S.score += SEED_POINTS;
           burst(e.x, e.y, '#ffd75c', 6);
         }
       } else if (e.t === 'fuel') {
@@ -316,10 +462,9 @@
         if (!e.hitCooldown && hitsRect(px, S.planeY, pr, e)) {
           e.hitCooldown = 0.6;
           damageCargo(CARGO_HAZARD_DAMAGE);
+          if (S.over) return;
         }
         if (e.hitCooldown) e.hitCooldown = Math.max(0, e.hitCooldown - dt);
-      } else if (e.t === 'finish') {
-        if (px > e.x && !S.over) return finish(true);
       }
     }
     S.ents = S.ents.filter(e => !e.dead);
@@ -334,9 +479,6 @@
 
     S.shake = Math.max(0, S.shake - dt * 34);
     S.flash = Math.max(0, S.flash - dt * 2.2);
-
-    // Out of fuel and back on the deck: the run is done.
-    if (S.fuel <= 0 && S.planeY >= FLOOR - 1 && Math.abs(S.vel) < 60) finish(false);
   }
 
   function hitsRect(px, py, pr, e) {
@@ -364,7 +506,6 @@
       ctx.translate((Math.random() - 0.5) * S.shake, (Math.random() - 0.5) * S.shake);
     }
 
-    // Sky: shifts from low neon purple to a cold blue-black as you climb.
     const alt = 1 - (S.planeY - PLAY_TOP) / (FLOOR - PLAY_TOP);
     const mix = (a, b) => Math.round(a + (b - a) * alt);
     const sky = `rgb(${mix(GROUND_SKY[0], HIGH_SKY[0])},${mix(GROUND_SKY[1], HIGH_SKY[1])},${mix(GROUND_SKY[2], HIGH_SKY[2])})`;
@@ -374,7 +515,6 @@
     ctx.fillStyle = g;
     ctx.fillRect(-20, -20, W + 40, H + 40);
 
-    // Parallax stars.
     for (const s of stars) {
       s.x -= S.speed * 0.14 * s.z * (1 / 60);
       if (s.x < -4) { s.x = W + 4; s.y = Math.random() * H; }
@@ -399,11 +539,16 @@
   }
 
   function drawFloor() {
-    ctx.strokeStyle = 'rgba(255,43,214,.45)';
-    ctx.lineWidth = 2;
+    // The deck glows hot while you are on it — the damage should be visible,
+    // not just a number ticking down.
+    const hot = S.grounded && !S.over;
+    ctx.strokeStyle = hot ? 'rgba(255,77,109,.95)' : 'rgba(255,43,214,.45)';
+    ctx.lineWidth = hot ? 4 : 2;
+    if (hot) { ctx.shadowColor = '#ff4d6d'; ctx.shadowBlur = 22; }
     ctx.beginPath(); ctx.moveTo(0, FLOOR + 18); ctx.lineTo(W, FLOOR + 18); ctx.stroke();
+    ctx.shadowBlur = 0;
 
-    ctx.strokeStyle = 'rgba(255,43,214,.14)';
+    ctx.strokeStyle = hot ? 'rgba(255,77,109,.22)' : 'rgba(255,43,214,.14)';
     ctx.lineWidth = 1;
     const off = S.scrolled % 80;
     for (let x = -off; x < W; x += 80) {
@@ -461,7 +606,6 @@
         glow('#ff2bd6', 22 * pulse, () => {
           ctx.fillStyle = `rgba(255,43,214,${pulse})`;
           ctx.fillRect(e.x - e.w / 2, e.y - e.h / 2, e.w, e.h);
-          // Emitter caps.
           ctx.fillStyle = '#ff8ae6';
           if (e.t === 'zapper_h') {
             ctx.fillRect(e.x - e.w / 2 - 7, e.y - 12, 9, 24);
@@ -471,19 +615,6 @@
             ctx.fillRect(e.x - 12, e.y + e.h / 2 - 2, 24, 9);
           }
         });
-        break;
-      }
-      case 'finish': {
-        glow('#00f0ff', 24, () => {
-          ctx.fillStyle = '#00f0ff';
-          ctx.fillRect(e.x - e.w / 2, e.y, e.w, e.h);
-        });
-        ctx.save();
-        ctx.fillStyle = '#00f0ff';
-        ctx.font = 'bold 15px ui-monospace, monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('DROP ZONE', e.x, e.y - 16);
-        ctx.restore();
         break;
       }
     }
@@ -502,7 +633,6 @@
     const x = PLANE_X, y = S.planeY;
     const tilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
 
-    // Exhaust trail.
     for (let i = S.trail.length - 1; i >= 1; i--) {
       const t = S.trail[i];
       if (!t.thrust) continue;
@@ -518,18 +648,15 @@
     ctx.rotate(tilt);
 
     glow('#00f0ff', 18, () => {
-      // Fuselage.
       ctx.fillStyle = '#d1e6ff';
       ctx.beginPath();
       ctx.moveTo(22, 0); ctx.lineTo(-14, -11); ctx.lineTo(-9, 0); ctx.lineTo(-14, 11);
       ctx.closePath(); ctx.fill();
 
-      // Cargo pod — tints toward red as the cargo degrades.
       const dmg = 1 - S.cargo / CARGO_MAX;
       ctx.fillStyle = `rgb(${Math.round(0 + dmg * 255)},${Math.round(240 - dmg * 163)},${Math.round(255 - dmg * 146)})`;
       ctx.fillRect(-11, -7, 13, 14);
 
-      // Pilot.
       ctx.fillStyle = '#ffd75c';
       ctx.beginPath(); ctx.arc(7, -3, 5, 0, 6.2832); ctx.fill();
     });
@@ -538,50 +665,48 @@
   }
 
   function drawHUD() {
-    const gr = gradeFor(S.cargo);
     ctx.save();
     ctx.font = '12px ui-monospace, "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
 
-    // Top strip.
     ctx.fillStyle = 'rgba(8,6,15,.72)';
     ctx.fillRect(0, 0, W, 46);
     ctx.strokeStyle = 'rgba(42,33,64,.9)';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, 46.5); ctx.lineTo(W, 46.5); ctx.stroke();
 
-    // Distance + progress.
-    ctx.fillStyle = '#8b96b8';
-    ctx.fillText('DISTANCE', 18, 18);
-    ctx.fillStyle = '#d1e6ff';
-    ctx.font = 'bold 17px ui-monospace, monospace';
-    ctx.fillText(`${Math.floor(S.distance)} / ${DISTANCE_TARGET} m`, 18, 37);
-
-    const pw = 210, px0 = 200;
-    ctx.fillStyle = 'rgba(42,33,64,.9)';
-    ctx.fillRect(px0, 20, pw, 7);
-    ctx.fillStyle = '#00f0ff';
-    ctx.fillRect(px0, 20, pw * Math.min(1, S.distance / DISTANCE_TARGET), 7);
-
-    // Fuel.
-    bar(440, 'FUEL', S.fuel / FUEL_MAX, S.fuel < 25 ? '#ff4d6d' : '#5cff9d');
-    // Cargo.
-    bar(620, 'CARGO', S.cargo / CARGO_MAX, gr.color);
-
-    // Grade chip.
-    ctx.font = 'bold 26px ui-monospace, monospace';
-    ctx.fillStyle = gr.color;
-    ctx.textAlign = 'center';
-    ctx.fillText(gr.grade, 800, 34);
-    ctx.font = '10px ui-monospace, monospace';
+    // Score leads — it is the whole point of the run now.
     ctx.fillStyle = '#5c6584';
-    ctx.fillText('GRADE', 800, 15);
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.fillText('SCORE', 18, 15);
+    ctx.fillStyle = '#d1e6ff';
+    ctx.font = 'bold 20px ui-monospace, monospace';
+    ctx.fillText(String(Math.floor(S.score)), 18, 36);
 
-    // Seeds + momentum.
+    ctx.fillStyle = '#5c6584';
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.fillText('BEST', 150, 15);
+    ctx.fillStyle = '#ffd75c';
+    ctx.font = 'bold 15px ui-monospace, monospace';
+    ctx.fillText(String(Math.max(bestScore(), 0)), 150, 34);
+
+    ctx.fillStyle = '#5c6584';
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.fillText('DISTANCE', 268, 15);
+    ctx.fillStyle = '#d1e6ff';
+    ctx.font = 'bold 15px ui-monospace, monospace';
+    ctx.fillText(Math.floor(S.distance) + ' m', 268, 34);
+
+    bar(400, 'FUEL', S.fuel / FUEL_MAX, S.fuel < 25 ? '#ff4d6d' : '#5cff9d');
+
+    const cargoFrac = S.cargo / CARGO_MAX;
+    const cargoCol = cargoFrac > 0.5 ? '#00f0ff' : cargoFrac > 0.25 ? '#ffd75c' : '#ff4d6d';
+    bar(570, 'CARGO', cargoFrac, cargoCol);
+
     ctx.textAlign = 'right';
     ctx.font = 'bold 17px ui-monospace, monospace';
     ctx.fillStyle = '#ffd75c';
-    ctx.fillText(`${S.seeds}`, W - 18, 22);
+    ctx.fillText(String(S.seeds), W - 18, 22);
     ctx.font = '10px ui-monospace, monospace';
     ctx.fillStyle = '#5c6584';
     ctx.fillText('SEEDS', W - 18, 34);
@@ -593,7 +718,12 @@
       ctx.fillText(`MOMENTUM ×${S.momentum.toFixed(2)}`, W / 2, H - 18);
     }
 
-    if (S.fuel <= 0) {
+    if (S.grounded && !S.over) {
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 17px ui-monospace, monospace';
+      ctx.fillStyle = `rgba(255,77,109,${0.6 + Math.sin(S.t * 18) * 0.4})`;
+      ctx.fillText('PULL UP — CARGO GRINDING', W / 2, 76);
+    } else if (S.fuel <= 0) {
       ctx.textAlign = 'center';
       ctx.font = 'bold 15px ui-monospace, monospace';
       ctx.fillStyle = '#ff4d6d';
@@ -622,51 +752,103 @@
   const ovBtn   = document.getElementById('ov-btn');
   const ovKeys  = overlay ? overlay.querySelector('.keys') : null;
 
-  function finish(delivered) {
+  function boardHTML(highlightIndex) {
+    if (!board.length) return '<p class="board-empty">No scores yet. Be the first.</p>';
+    return '<ol class="board">' + board.map((e, i) =>
+      `<li${i === highlightIndex ? ' class="is-new"' : ''}>` +
+        `<span class="board-rank">${i + 1}</span>` +
+        `<span class="board-name">${e.name}</span>` +
+        `<span class="board-score">${e.score}</span>` +
+      '</li>').join('') + '</ol>';
+  }
+
+  function finish() {
     if (S.over) return;
     S.over = true;
     running = false;
 
-    const gr = gradeFor(S.cargo);
-    const fee = Math.round(S.distance * PAY_PER_METER);
-    let payout = Math.round(fee * gr.pay * S.momentum);
-    if (delivered) payout = Math.round(payout * COMPLETION_BONUS_MULT);
+    const score = Math.floor(S.score);
+    const isRecord = qualifies(score);
 
-    ovTitle.textContent = delivered ? 'CARGO DELIVERED' : 'RUN ENDED — FUEL DRY';
-    ovTitle.style.color = delivered ? '#5cff9d' : '#ff4d6d';
+    say(isRecord ? 'record' : 'dead', { force: true, hold: 5000 });
 
-    ovBody.innerHTML = `
-      <p class="grade-badge" style="color:${gr.color}">${gr.grade}</p>
-      <dl class="result-grid">
-        <dt>Distance</dt><dd>${Math.floor(S.distance)} m</dd>
-        <!-- Floor, not round: rounding 74.6 up to 75 would show "75%" next to a
-             B when the A threshold is 75, which reads as a bug to the player. -->
-        <dt>Cargo intact</dt><dd>${Math.floor(S.cargo)}%</dd>
-        <dt>Delivery fee</dt><dd>${fee}</dd>
-        <dt>Grade pays</dt><dd>${Math.round(gr.pay * 100)}%</dd>
-        <dt>Momentum</dt><dd>×${S.momentum.toFixed(2)}</dd>
-        ${delivered ? '<dt>Completion bonus</dt><dd>×1.25</dd>' : ''}
-        <dt>Seeds collected</dt><dd>${S.seeds}</dd>
-        <dt><strong>Payout</strong></dt><dd><strong>${payout + S.seeds}</strong></dd>
-        <dt>Reputation</dt><dd>+${gr.rep}</dd>
-      </dl>`;
+    ovTitle.textContent = S.fuel <= 0 && S.cargo > 0 ? 'RUN ENDED' : 'CARGO DESTROYED';
+    ovTitle.style.color = '#ff4d6d';
+
+    const summary =
+      `<dl class="result-grid">
+         <dt>Score</dt><dd><strong>${score}</strong></dd>
+         <dt>Distance</dt><dd>${Math.floor(S.distance)} m</dd>
+         <dt>Seeds</dt><dd>${S.seeds}</dd>
+       </dl>`;
+
+    if (isRecord) {
+      ovBody.innerHTML = summary +
+        `<p class="record-flag">NEW HIGH SCORE</p>
+         <label class="initials-label" for="initials">Enter your initials</label>
+         <input id="initials" class="initials" maxlength="3" autocomplete="off"
+                autocorrect="off" autocapitalize="characters" spellcheck="false"
+                inputmode="latin" aria-label="Three-character initials">`;
+      ovBtn.textContent = 'Save score';
+      ovBtn.dataset.action = 'save';
+      ovBtn.dataset.score = String(score);
+    } else {
+      ovBody.innerHTML = summary + boardHTML(-1);
+      ovBtn.textContent = 'Fly again';
+      ovBtn.dataset.action = 'restart';
+    }
 
     if (ovKeys) ovKeys.style.display = 'none';
-    ovBtn.textContent = 'Fly again';
     overlay.classList.remove('hidden');
 
-    // You almost always cross the drop zone mid-thrust. Without this, the key
-    // you are already holding restarts the run instantly and you never get to
-    // read your own grade. Require a fresh press, and ignore even that for a
-    // beat so a reflex tap cannot skip the results either.
     startArmed = false;
     resultsLockUntil = performance.now() + 700;
+
+    if (isRecord) {
+      const input = document.getElementById('initials');
+      if (input) {
+        // Only A-Z and 0-9, always uppercase — arcade rules.
+        input.addEventListener('input', () => {
+          input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+        });
+        input.addEventListener('keydown', (e) => {
+          e.stopPropagation();          // never let Space here restart the run
+          if (e.key === 'Enter') { e.preventDefault(); commitScore(); }
+        });
+        setTimeout(() => input.focus(), 60);
+      }
+    }
+  }
+
+  function commitScore() {
+    const input = document.getElementById('initials');
+    const score = parseInt(ovBtn.dataset.score || '0', 10);
+    const name = ((input && input.value) || 'AAA').toUpperCase()
+      .replace(/[^A-Z0-9]/g, '').slice(0, 3).padEnd(3, '-');
+
+    board.push({ name, score });
+    board.sort((a, b) => b.score - a.score);
+    board = board.slice(0, BOARD_SIZE);
+    const stored = saveBoard(board);
+
+    const idx = board.findIndex(e => e.name === name && e.score === score);
+    ovTitle.textContent = 'SCORE SAVED';
+    ovTitle.style.color = '#5cff9d';
+    ovBody.innerHTML = boardHTML(idx) + (stored ? '' :
+      '<p class="board-empty">This browser is blocking storage, so the board ' +
+      'will reset when you leave.</p>');
+    ovBtn.textContent = 'Fly again';
+    ovBtn.dataset.action = 'restart';
+    startArmed = false;
+    resultsLockUntil = performance.now() + 400;
   }
 
   function start() {
     reset();
     overlay.classList.add('hidden');
+    ovBtn.dataset.action = 'restart';
     running = true;
+    say('start', { force: true, hold: 3200 });
     lastTime = performance.now();
     requestAnimationFrame(loop);
   }
@@ -688,19 +870,23 @@
   };
   const up = () => { holding = false; startArmed = true; };
 
-  // True when the overlay is up and a fresh press should launch a run.
+  const typing = () => {
+    const a = document.activeElement;
+    return a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA');
+  };
+
   function canStartNow() {
     return !running
       && overlay && !overlay.classList.contains('hidden')
       && startArmed
+      && !typing()
+      && ovBtn.dataset.action !== 'save'
       && performance.now() >= resultsLockUntil;
   }
 
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
       if (!running) {
-        // Space doubles as "start"/"fly again" while the overlay is up. Let the
-        // button keep its own Space handling when it has focus.
         if (canStartNow() && document.activeElement !== ovBtn) {
           start();
           e.preventDefault();
@@ -728,14 +914,22 @@
   window.addEventListener('touchend', up);
   window.addEventListener('blur', up);
 
-  if (ovBtn) ovBtn.addEventListener('click', start);
+  if (ovBtn) ovBtn.addEventListener('click', () => {
+    if (ovBtn.dataset.action === 'save') commitScore();
+    else start();
+  });
 
   /* ---------------------------- first paint ------------------------------ */
 
   reset();
   draw();
 
-  // Idle attract loop so the canvas is not a dead rectangle before you press start.
+  if (capBubble) {
+    capBubble.textContent = board.length
+      ? `Board says ${board[0].name} is the one to beat. ${board[0].score} points.`
+      : "Fresh board, no names on it. Go put yours up.";
+  }
+
   (function attract() {
     if (!running) {
       S.t += 1 / 60;
@@ -746,5 +940,4 @@
       requestAnimationFrame(attract);
     }
   })();
-
 })();

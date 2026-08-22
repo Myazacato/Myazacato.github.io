@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -68,29 +68,55 @@
     <div class="game-frame">
       <div class="game-chrome">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="chrome-title">SEED RUN &mdash; CONTRACT 01 &mdash; 900M</span>
+        <span class="chrome-title">STARPORT CONTROL &mdash; OPEN RUN &mdash; NO CEILING</span>
       </div>
-      <div class="canvas-wrap">
-        <canvas id="game" width="960" height="540" aria-label="Playable flight demo"></canvas>
-        <div id="overlay" class="overlay">
-          <div class="overlay-inner">
-            <h3 id="ov-title">DIANA</h3>
-            <div id="ov-body">
-              <p>
-                Deliver the cargo 900 metres down the lane.
-                Coins are seeds. Fuel keeps you flying. Zappers wreck the cargo
-                &mdash; and you get paid on how intact it arrives.
-              </p>
+
+      <div class="game-stage">
+
+        <!-- Captain Meow: dispatch, commentary, and general lack of confidence -->
+        <aside class="captain" data-mood="calm">
+          <div class="cap-portrait" id="cap-portrait" aria-hidden="true">
+            <svg viewBox="0 0 100 100" role="img">
+              <path class="cap-ear" d="M18 34 L26 8 L44 24 Z"/>
+              <path class="cap-ear" d="M82 34 L74 8 L56 24 Z"/>
+              <rect class="cap-head" x="14" y="22" width="72" height="62" rx="20"/>
+              <ellipse class="cap-eye" cx="36" cy="50" rx="7" ry="9"/>
+              <ellipse class="cap-eye" cx="64" cy="50" rx="7" ry="9"/>
+              <path class="cap-mouth" d="M42 66 Q50 74 58 66"/>
+              <path class="cap-whisker" d="M8 58 H26 M8 66 H26 M92 58 H74 M92 66 H74"/>
+            </svg>
+          </div>
+          <p class="cap-name">CAPTAIN MEOW</p>
+          <p class="cap-role">DISPATCH</p>
+          <div class="cap-bubble">
+            <p id="cap-line" role="status" aria-live="polite">Standing by.</p>
+          </div>
+        </aside>
+
+        <div class="canvas-wrap">
+          <canvas id="game" width="960" height="540" aria-label="Playable flight demo"></canvas>
+          <div id="overlay" class="overlay">
+            <div class="overlay-inner">
+              <h3 id="ov-title">DIANA</h3>
+              <div id="ov-body">
+                <p>
+                  Fly as far as you can. Coins are seeds and seeds are points.
+                  Zappers wreck the cargo &mdash; and so does the deck, so never
+                  sit on it. When the cargo is gone, so are you.
+                </p>
+              </div>
+              <p class="keys"><kbd>Space</kbd> / <kbd>click</kbd> / <kbd>tap</kbd> to climb &mdash; release to fall</p>
+              <button id="ov-btn" class="btn btn-primary" data-action="restart">Start run</button>
             </div>
-            <p class="keys"><kbd>Space</kbd> / <kbd>click</kbd> / <kbd>tap</kbd> to climb &mdash; release to fall</p>
-            <button id="ov-btn" class="btn btn-primary">Start run</button>
           </div>
         </div>
+
       </div>
     </div>
     <p class="fineprint">
       Built from scratch for this page &mdash; same speed curve, chunk spawner and
-      cargo-grade thresholds as the Godot build, condensed into one file.
+      cargo-damage values as the Godot build, condensed into one file. High
+      scores are saved in your own browser.
     </p>
   </section>
 
@@ -288,7 +314,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js"></script>
-<script src="demo.js"></script>
+<script src="site.js?v=2"></script>
+<script src="demo.js?v=2"></script>
 </body>
 </html>
