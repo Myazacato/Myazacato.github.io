@@ -122,7 +122,7 @@
      ---------------------------------------------------------------------- */
 
   const SPRITES = {
-    plane: { src: null, w: 56, h: 36 },   // e.g. 'assets/game/plane.png'
+    plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12 },
     coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
     fuel:  { src: null, w: 30, h: 36 },   // e.g. 'assets/game/fuel.png'
   };
@@ -807,25 +807,26 @@
 
     const dmgFrac = 1 - S.cargo / CARGO_MAX;
 
-    glow('#00f0ff', 18, () => {
-      // A custom sprite replaces the whole craft. It is already inside the
-      // translate/rotate, so it banks with the flight angle for free, and it
-      // flushes red as cargo drops so a sprite does not cost you the damage
-      // feedback the drawn shapes gave.
-      if (spriteTinted('plane', 0, 0, '#ff4d6d', dmgFrac * 0.6)) return;
+    // A custom sprite replaces the whole craft, and is drawn flat with no halo
+    // behind it. The glow exists to give the flat vector shape some presence;
+    // over real artwork it only smears a cyan fringe across the outline. The
+    // sprite sits inside the translate/rotate, so it banks with the flight
+    // angle for free, and it flushes red as cargo drops so switching to art
+    // does not cost the damage feedback the shapes gave.
+    if (!spriteTinted('plane', 0, 0, '#ff4d6d', dmgFrac * 0.6)) {
+      glow('#00f0ff', 18, () => {
+        ctx.fillStyle = '#d1e6ff';
+        ctx.beginPath();
+        ctx.moveTo(22, 0); ctx.lineTo(-14, -11); ctx.lineTo(-9, 0); ctx.lineTo(-14, 11);
+        ctx.closePath(); ctx.fill();
 
-      ctx.fillStyle = '#d1e6ff';
-      ctx.beginPath();
-      ctx.moveTo(22, 0); ctx.lineTo(-14, -11); ctx.lineTo(-9, 0); ctx.lineTo(-14, 11);
-      ctx.closePath(); ctx.fill();
+        ctx.fillStyle = `rgb(${Math.round(dmgFrac * 255)},${Math.round(240 - dmgFrac * 163)},${Math.round(255 - dmgFrac * 146)})`;
+        ctx.fillRect(-11, -7, 13, 14);
 
-      const dmg = 1 - S.cargo / CARGO_MAX;
-      ctx.fillStyle = `rgb(${Math.round(0 + dmg * 255)},${Math.round(240 - dmg * 163)},${Math.round(255 - dmg * 146)})`;
-      ctx.fillRect(-11, -7, 13, 14);
-
-      ctx.fillStyle = '#ffd75c';
-      ctx.beginPath(); ctx.arc(7, -3, 5, 0, 6.2832); ctx.fill();
-    });
+        ctx.fillStyle = '#ffd75c';
+        ctx.beginPath(); ctx.arc(7, -3, 5, 0, 6.2832); ctx.fill();
+      });
+    }
 
     ctx.restore();
   }
