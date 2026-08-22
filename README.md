@@ -91,7 +91,7 @@ Changes appear at https://myazacato.github.io within a minute or so.
 ## The demo
 
 `demo.js` is a condensed rebuild of the flight scene from
-[Diana](https://github.com/Myazacato/space-dog) (Godot 4).
+the Godot 4 project (private repo).
 The speed curve, chunk spawner, cargo-damage values and delivery-grade
 thresholds are taken from the real game so the feel carries over. It is a
 separate implementation, not an export of the Godot build.
