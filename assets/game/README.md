@@ -41,3 +41,40 @@ const SPRITES = {
 
 They start as `null` so the browser is not requesting files that do not exist
 yet — otherwise every visitor's console fills with 404s.
+
+## Animation — use a sprite sheet, not a GIF
+
+**Animated GIFs do not work.** Canvas draws only the first frame of a GIF and
+ignores the rest, and there is no flag to change that. The same applies to
+animated WebP and APNG. It is a limitation of `drawImage`, not of this demo.
+
+Use a **sprite sheet** instead: every frame in one PNG, all the same size, laid
+out left to right.
+
+```
+[ frame 1 ][ frame 2 ][ frame 3 ][ frame 4 ]     <- one 256x64 png, 4 frames
+```
+
+Then say how many frames it holds and how fast to play them:
+
+```js
+plane: { src: 'assets/game/dog.png', w: 56, h: 36, frames: 4, fps: 12 },
+```
+
+- Every frame must be the **same width and height**. The frame size is worked
+  out by dividing the image, so uneven frames will drift.
+- `fps` is frames per second — 8 to 12 reads well for a flight cycle.
+- For a grid instead of a strip, add `cols`. Frames fill left to right, then
+  wrap: `frames: 8, cols: 4` is a 4x2 sheet.
+- `w`/`h` are the on-canvas size of **one frame**, not the whole sheet.
+
+A sheet is also better art than a GIF would be: full colour and soft alpha
+edges, where GIF gives you 256 colours and hard-edged cutouts that look ragged
+against a dark background.
+
+### Making one
+
+Any of these work: Aseprite (File > Export Sprite Sheet), Piskel (free, in
+browser), TexturePacker, or just laying frames out on one canvas in Photoshop
+or Figma and exporting once. Keep the character centred in each frame and
+facing right, or it will appear to jitter as it animates.

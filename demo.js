@@ -93,16 +93,31 @@
 
          plane: { src: 'assets/game/plane.png', w: 56, h: 36 },
 
+     TO ANIMATE: use a sprite sheet — every frame in ONE png, all the same
+     size, laid out left to right — and say how many frames it holds.
+
+         plane: { src: 'assets/game/dog.png', w: 56, h: 36, frames: 5, fps: 12 },
+
+     Animated GIFs do not work here, and cannot be made to: canvas draws only
+     the first frame of a GIF and ignores the rest. The same is true of
+     animated WebP and APNG. A sheet is the better art anyway — full colour
+     and soft alpha edges, where GIF gives 256 colours and hard-edged cutouts.
+
+     For a grid rather than a single strip, add `cols`. Frames fill left to
+     right, then wrap to the next row:
+
+         frames: 8, cols: 4      // a 4x2 sheet
+
      `src: null` means "draw the built-in vector shape instead", which is also
      what happens if the file 404s or fails to decode, so a typo degrades to
      the old look rather than an empty screen. Paths start out null so the
      browser is not chasing files that do not exist yet.
 
-     `w`/`h` are the on-canvas size within the 960x540 frame. The image is
-     scaled to fit, so any source resolution works — 2x or 3x art just looks
-     sharper on high-DPI screens. Match the aspect ratio or it will stretch.
+     `w`/`h` are the on-canvas size within the 960x540 frame — of ONE frame,
+     not of the whole sheet. Frames are scaled to fit, so any source
+     resolution works; 2x or 3x art just looks sharper on high-DPI screens.
 
-     The plane sprite should face right and sit centred in its image: it is
+     The plane sprite should face right and sit centred in its frame: it is
      drawn around its centre and rotated to the climb angle.
      ---------------------------------------------------------------------- */
 
@@ -116,9 +131,18 @@
   Object.keys(SPRITES).forEach((key) => {
     const s = SPRITES[key];
     s.ready = false;
+    s.frames = Math.max(1, s.frames || 1);
+    s.cols = Math.max(1, s.cols || s.frames);
+    s.rows = Math.ceil(s.frames / s.cols);
+    s.fps = s.fps || 10;
     if (!s.src) return;
     const img = new Image();
-    img.addEventListener('load', () => { s.ready = img.naturalWidth > 0; });
+    img.addEventListener('load', () => {
+      s.ready = img.naturalWidth > 0;
+      // Frame size is measured off the sheet, so the art decides it.
+      s.fw = img.naturalWidth / s.cols;
+      s.fh = img.naturalHeight / s.rows;
+    });
     img.addEventListener('error', () => {
       s.ready = false;
       console.warn(`[Diana] sprite "${key}" could not load from ${s.src} — using the drawn shape.`);
@@ -127,12 +151,24 @@
     s.img = img;
   });
 
+  // Which cell of the sheet to show right now. Driven by wall clock, so the
+  // animation holds its stated fps whatever the render rate is doing.
+  function frameRect(s) {
+    if (s.frames <= 1) return null;
+    const i = Math.floor(performance.now() / 1000 * s.fps) % s.frames;
+    return { sx: (i % s.cols) * s.fw, sy: Math.floor(i / s.cols) * s.fh };
+  }
+
   // Draws a sprite centred on (x, y). Returns false when it is not usable, so
-  // callers can fall through to the drawn shape.
-  function sprite(key, x, y) {
+  // callers can fall through to the drawn shape. `wOverride` lets the coin
+  // squash horizontally without disturbing the sheet maths.
+  function sprite(key, x, y, wOverride) {
     const s = SPRITES[key];
     if (!s || !s.ready) return false;
-    ctx.drawImage(s.img, x - s.w / 2, y - s.h / 2, s.w, s.h);
+    const w = wOverride === undefined ? s.w : wOverride;
+    const f = frameRect(s);
+    if (f) ctx.drawImage(s.img, f.sx, f.sy, s.fw, s.fh, x - w / 2, y - s.h / 2, w, s.h);
+    else   ctx.drawImage(s.img, x - w / 2, y - s.h / 2, w, s.h);
     return true;
   }
 
@@ -154,7 +190,9 @@
     }
     tintCtx.clearRect(0, 0, s.w, s.h);
     tintCtx.globalCompositeOperation = 'source-over';
-    tintCtx.drawImage(s.img, 0, 0, s.w, s.h);
+    const f = frameRect(s);
+    if (f) tintCtx.drawImage(s.img, f.sx, f.sy, s.fw, s.fh, 0, 0, s.w, s.h);
+    else   tintCtx.drawImage(s.img, 0, 0, s.w, s.h);
     tintCtx.globalCompositeOperation = 'source-atop';   // masked by the sprite
     tintCtx.fillStyle = color;
     tintCtx.globalAlpha = strength;
@@ -689,13 +727,8 @@
         const sq = Math.abs(Math.cos(e.spin));
         glow('#ffd75c', 14, () => {
           // A custom coin sprite keeps the spin by squashing horizontally,
-          // exactly as the drawn one does.
-          if (SPRITES.coin.ready) {
-            const s = SPRITES.coin;
-            const w = s.w * (0.35 + sq * 0.65);
-            ctx.drawImage(s.img, e.x - w / 2, e.y - s.h / 2, w, s.h);
-            return;
-          }
+          // exactly as the drawn one does — and still animates if it is a sheet.
+          if (sprite('coin', e.x, e.y, SPRITES.coin.w * (0.35 + sq * 0.65))) return;
           ctx.fillStyle = '#ffd75c';
           ctx.beginPath();
           ctx.ellipse(e.x, e.y, e.r * (0.35 + sq * 0.65), e.r, 0, 0, 6.2832);
