@@ -9,7 +9,7 @@ edit a file, commit, push, and it is live in about a minute.
 index.html    all page content
 style.css     all styling (palette matches the game's cyberpunk theme)
 site.js       page behaviour: footer year, email assembly
-demo.js       the playable Flight of the Hamsters browser demo
+demo.js       the playable Diana browser demo
 robots.txt    crawler preferences
 favicon.svg   tab icon
 assets/art/   art images
@@ -91,7 +91,7 @@ Changes appear at https://myazacato.github.io within a minute or so.
 ## The demo
 
 `demo.js` is a condensed rebuild of the flight scene from
-[Flight of the Hamsters](https://github.com/Myazacato/space-dog) (Godot 4).
+[Diana](https://github.com/Myazacato/space-dog) (Godot 4).
 The speed curve, chunk spawner, cargo-damage values and delivery-grade
 thresholds are taken from the real game so the feel carries over. It is a
 separate implementation, not an export of the Godot build.

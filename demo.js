@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Flight of the Hamsters — browser demo
+   Diana — browser demo
    --------------------------------------------------------------------------
    A condensed version of the Godot build's flight scene. The numbers here are
    lifted from the real game so the feel carries over:
