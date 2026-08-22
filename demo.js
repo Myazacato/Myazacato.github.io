@@ -72,6 +72,21 @@
   // clean is worth more than flying far.
   const SEED_POINTS = 25;
 
+  /* ------------------------------- flame ---------------------------------
+     The jetpack burns green and hard while you are climbing, and idles yellow
+     and short when you are not — so the exhaust tells you what the throttle is
+     doing without you having to look at the fuel bar. Dry tank, no flame.
+
+     Coordinates are local to the character, so the flame stays bolted to the
+     jetpack as she banks. The nozzle sits behind her and a little low. */
+  const FLAME_NOZZLE = { x: -13, y: 7 };
+  const FLAME = {
+    thrust: { core: '#f0fff6', mid: '#5cff9d', outer: '#00b45e',
+              len: 36, halfW: 8.5, sparks: 2, spark: '#5cff9d' },
+    hover:  { core: '#fff6d8', mid: '#ffd75c', outer: '#d98a1c',
+              len: 14, halfW: 5.5, sparks: 0.5, spark: '#ffd75c' },
+  };
+
   // Flight physics.
   const GRAVITY     = 1500;
   const THRUST      = -2750;
@@ -426,7 +441,8 @@
       over: false,
       shake: 0,
       flash: 0,
-      trail: [],
+      thrusting: false,
+      sparkDebt: 0,
       nextIdleLine: 6,
       nextMilestone: 800,
       warnedFuel: false,
@@ -580,9 +596,29 @@
       say('far', { force: true });
     }
 
-    /* --- trail --- */
-    S.trail.unshift({ y: S.planeY, thrust: canThrust });
-    if (S.trail.length > 22) S.trail.pop();
+    /* --- jetpack exhaust ---
+       The flame itself is drawn attached to the character; these are the
+       sparks it throws off, which live in world space so they hang in the air
+       and stream away behind her. The nozzle has to be rotated into world
+       coordinates by hand, since the particles are not inside her transform. */
+    S.thrusting = canThrust;
+    if (S.fuel > 0) {
+      const f = canThrust ? FLAME.thrust : FLAME.hover;
+      S.sparkDebt += f.sparks * dt * 60;
+      const tilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
+      const cos = Math.cos(tilt), sin = Math.sin(tilt);
+      const nx = FLAME_NOZZLE.x - f.len * 0.5, ny = FLAME_NOZZLE.y;
+      while (S.sparkDebt >= 1) {
+        S.sparkDebt -= 1;
+        S.particles.push({
+          x: PLANE_X + nx * cos - ny * sin,
+          y: S.planeY + nx * sin + ny * cos,
+          vx: -S.speed * 0.45 - Math.random() * 90,
+          vy: (Math.random() - 0.5) * 70 + 40,
+          life: 0.18 + Math.random() * 0.22, max: 0.4, c: f.spark,
+        });
+      }
+    }
 
     maybeSpawnChunk();
 
@@ -787,23 +823,47 @@
     ctx.globalAlpha = 1;
   }
 
+  // One tongue of flame: a leaf shape tapering from the nozzle to a point.
+  function flameTongue(len, halfW, color, blur, alpha) {
+    const n = FLAME_NOZZLE;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = blur;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(n.x, n.y - halfW);
+    ctx.quadraticCurveTo(n.x - len * 0.55, n.y - halfW * 0.85, n.x - len, n.y);
+    ctx.quadraticCurveTo(n.x - len * 0.55, n.y + halfW * 0.85, n.x, n.y + halfW);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFlame() {
+    if (S.fuel <= 0) return;                    // dry tank burns nothing
+    const f = S.thrusting ? FLAME.thrust : FLAME.hover;
+
+    // Flicker: a fast wobble plus a slower swell, so it never looks like a
+    // sine wave. Three layers, each shorter and brighter than the last.
+    const flicker = 0.82 + Math.sin(S.t * 47) * 0.12 + Math.sin(S.t * 13) * 0.06;
+    const len = f.len * flicker;
+
+    flameTongue(len,        f.halfW,        f.outer, 22, 0.55);
+    flameTongue(len * 0.66, f.halfW * 0.72, f.mid,   14, 0.85);
+    flameTongue(len * 0.32, f.halfW * 0.40, f.core,   8, 0.95);
+  }
+
   function drawPlane() {
     const x = PLANE_X, y = S.planeY;
     const tilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
 
-    for (let i = S.trail.length - 1; i >= 1; i--) {
-      const t = S.trail[i];
-      if (!t.thrust) continue;
-      ctx.globalAlpha = (1 - i / S.trail.length) * 0.5;
-      ctx.fillStyle = i < 8 ? '#ff2bd6' : '#00f0ff';
-      const s = 8 * (1 - i / S.trail.length);
-      ctx.fillRect(x - 16 - i * 6, t.y - s / 2 + 6, s * 1.6, s);
-    }
-    ctx.globalAlpha = 1;
-
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(tilt);
+
+    // Behind the character, so she sits on top of her own exhaust.
+    drawFlame();
 
     const dmgFrac = 1 - S.cargo / CARGO_MAX;
 
