@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carolina Toyoshima — Game Design &amp; Godot</title>
+<meta name="description" content="Designing and building games in Godot. Play Flight of the Hamsters in your browser.">
+
+<meta property="og:title" content="Carolina Toyoshima — Game Design &amp; Godot">
+<meta property="og:description" content="A delivery roguelite you can play in your browser, and the design thinking behind it.">
+<meta property="og:type" content="website">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<div class="grid-bg" aria-hidden="true"></div>
+
+<header class="topbar">
+  <a class="wordmark" href="#top">CT<span class="cursor">_</span></a>
+  <nav>
+    <a href="#play">Play</a>
+    <a href="#games">Games</a>
+    <a href="#art">Art &amp; UI</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <p class="eyebrow">Game Design &middot; Godot &middot; Systems &amp; Economy</p>
+    <h1>Carolina<br>Toyoshima</h1>
+    <p class="lede">
+      I design and build games &mdash; the kind where the economy, the level
+      generator and the scoring screen are all arguing about the same thing.
+      <em>Flight of the Hamsters</em> is a delivery roguelite in Godot&nbsp;4,
+      and you can play a piece of it right here on this page.
+    </p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#play">Play in your browser</a>
+      <a class="btn" href="#games">See the work</a>
+    </div>
+    <ul class="hero-links">
+      <li><a href="https://github.com/Myazacato">GitHub</a></li>
+      <li><a href="https://www.linkedin.com/in/ctoyoshima/">LinkedIn</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </section>
+
+  <!-- ============ PLAYABLE DEMO ============ -->
+  <section id="play" class="section">
+    <div class="section-head">
+      <span class="num">01</span>
+      <h2>Playable demo</h2>
+      <p class="section-sub">
+        The core flight loop of <em>Flight of the Hamsters</em>, rebuilt in plain
+        JavaScript so it runs instantly on any device &mdash; no plugin, no download.
+        The full game is built in Godot&nbsp;4.
+      </p>
+    </div>
+
+    <div class="game-frame">
+      <div class="game-chrome">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="chrome-title">SEED RUN &mdash; CONTRACT 01 &mdash; 900M</span>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="game" width="960" height="540" aria-label="Playable flight demo"></canvas>
+        <div id="overlay" class="overlay">
+          <div class="overlay-inner">
+            <h3 id="ov-title">FLIGHT OF THE HAMSTERS</h3>
+            <div id="ov-body">
+              <p>
+                Deliver the cargo 900 metres down the lane.
+                Coins are seeds. Fuel keeps you flying. Zappers wreck the cargo
+                &mdash; and you get paid on how intact it arrives.
+              </p>
+            </div>
+            <p class="keys"><kbd>Space</kbd> / <kbd>click</kbd> / <kbd>tap</kbd> to climb &mdash; release to fall</p>
+            <button id="ov-btn" class="btn btn-primary">Start run</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="fineprint">
+      Built from scratch for this page &mdash; same speed curve, chunk spawner and
+      cargo-grade thresholds as the Godot build, condensed into one file.
+    </p>
+  </section>
+
+  <!-- ============ GAMES ============ -->
+  <section id="games" class="section">
+    <div class="section-head">
+      <span class="num">02</span>
+      <h2>Games</h2>
+    </div>
+
+    <article class="case">
+      <div class="case-head">
+        <div>
+          <h3>Flight of the Hamsters</h3>
+          <p class="case-tag">Side-scrolling delivery roguelite &middot; Solo project &middot; In development</p>
+        </div>
+        <ul class="stack">
+          <li>Godot 4.6</li>
+          <li>GDScript</li>
+          <li>~2,700 LOC</li>
+        </ul>
+      </div>
+
+      <p class="case-lede">
+        You fly cargo down a hostile lane for a dispatch office that will not
+        tell you what is in the crates. The twist is that surviving the run and
+        <em>delivering well</em> are two different skills &mdash; and the game pays
+        you for the second one.
+      </p>
+
+      <h4>The loop</h4>
+      <p>
+        Take a contract &rarr; fly the lane &rarr; get graded on arrival &rarr;
+        spend seeds at the depot &rarr; slot new modules &rarr; take a harder
+        contract. Fourteen contracts unlock one at a time, each trading better
+        pay against faster fuel burn and a longer lane.
+      </p>
+
+      <h4>Design decisions I&rsquo;d defend in an interview</h4>
+
+      <div class="cards">
+        <div class="card">
+          <span class="card-tag">LEVEL DESIGN</span>
+          <h5>Authored chunks, not random spawners</h5>
+          <p>
+            The lane emits hand-built obstacle patterns one at a time on
+            distance, rather than firing independent random spawners on timers.
+            That is what gives a run a readable <em>rhythm</em> instead of uniform
+            noise. Coins are the pathing language &mdash; they trace the line you
+            are meant to fly, or bait you into a worse one. They are never
+            scattered at random.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-tag">PACING</span>
+          <h5>Forced breathers</h5>
+          <p>
+            Every third chunk is guaranteed to be difficulty zero &mdash; no
+            hazards at all. Pressure needs somewhere to release, otherwise a long
+            run reads as one flat wall of stress and players stop registering the
+            spikes.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-tag">ECONOMY</span>
+          <h5>One letter tells the whole story</h5>
+          <p>
+            Cargo degrades from hazard hits, hard bounces and sustained high-G
+            flying. The delivery grade (S&ndash;F) drives <em>both</em> the payout
+            share and the reputation gained &mdash; so the letter on the results
+            screen is the entire outcome, not a label sitting next to a separate
+            calculation. Coins are deliberately excluded from grade scaling: a
+            battered run still keeps what it picked up.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-tag">PROGRESSION</span>
+          <h5>Slot scarcity forces identity</h5>
+          <p>
+            Thirty-one permanent modules across eight tags &mdash; but only two
+            bays to start, five at most, with extra bays priced steeply. You
+            cannot own the board. Scarcity is what turns a shopping list into a
+            build.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-tag">SHOP</span>
+          <h5>Five offers, not a catalogue</h5>
+          <p>
+            The depot shows a fixed five offers that rotate after each run, with
+            a rising reroll cost. You meet the catalogue a few items at a time,
+            so buying one is a real choice under uncertainty rather than
+            optimisation against a full menu.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-tag">DIFFICULTY</span>
+          <h5>A curve with no plateau</h5>
+          <p>
+            Scroll speed ramps fast, eases into a shoulder that keeps the opening
+            readable, then creeps upward forever. Every run ends because the lane
+            eventually outruns you &mdash; there is no speed you can settle into.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-tag">UI</span>
+          <h5>One colour language everywhere</h5>
+          <p>
+            Blue always means one-use, purple always means permanent &mdash; in
+            the shop, in the loadout screen and on the in-flight hotbar. The
+            hotbar keys live in a single constant so three separate screens can
+            never disagree about which key fires which slot.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-tag">FEEDBACK</span>
+          <h5>Modules that show their work</h5>
+          <p>
+            Each slotted module gets a chip in the HUD, dim until it actually
+            does something. Always-on modules stay lit; triggered ones flash on
+            fire. You can see your build working instead of trusting a tooltip.
+          </p>
+        </div>
+      </div>
+
+      <div class="case-links">
+        <a class="btn btn-primary" href="#play">Play the demo</a>
+        <a class="btn" href="https://github.com/Myazacato/space-dog">Source on GitHub</a>
+      </div>
+    </article>
+  </section>
+
+  <!-- ============ ART & UI ============ -->
+  <section id="art" class="section">
+    <div class="section-head">
+      <span class="num">03</span>
+      <h2>Art &amp; UI</h2>
+      <p class="section-sub">
+        Character work, interface design and visual development for
+        <em>Space Dog</em> and <em>Flight of the Hamsters</em>.
+      </p>
+    </div>
+
+    <div class="gallery">
+      <figure class="tile tile-wide">
+        <img src="assets/art/mission-complete-ui.svg" alt="Mission Complete results screen: a neon cyberpunk interface with distance flown, boosts used, near-misses dodged and a speed combo multiplier, with a cat officer portrait in the sidebar.">
+        <figcaption>Mission Complete screen &mdash; results UI, built as scalable vector</figcaption>
+      </figure>
+      <figure class="tile tile-wide">
+        <img src="assets/art/space-dog-character-sheet.png" alt="Character sheet for a small white space dog in a spacesuit, showing idle, run, jump, double jump, hover, star-blast attack, hurt and victory poses plus a row of jetpack flight frames.">
+        <figcaption>Space Dog &mdash; character sheet and animation states</figcaption>
+      </figure>
+      <figure class="tile">
+        <img src="assets/art/astronaut-study.png" alt="Blue and yellow line study of an astronaut floating in a spacesuit.">
+        <figcaption>Astronaut &mdash; pose and silhouette study</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section id="contact" class="section contact">
+    <div class="section-head">
+      <span class="num">04</span>
+      <h2>Get in touch</h2>
+    </div>
+    <p class="contact-lede">
+      Open to game design and game development roles.
+    </p>
+    <ul class="contact-links">
+      <!-- Address is injected by site.js so it never appears in the markup. -->
+      <li><a href="#contact" data-email>Email</a></li>
+      <li><a href="https://www.linkedin.com/in/ctoyoshima/">linkedin.com/in/ctoyoshima</a></li>
+      <li><a href="https://github.com/Myazacato">github.com/Myazacato</a></li>
+    </ul>
+    <noscript>
+      <p class="fineprint">
+        The email address is revealed by JavaScript to keep it away from
+        harvesters. With scripting off, reach me on LinkedIn instead.
+      </p>
+    </noscript>
+  </section>
+
+</main>
+
+<footer>
+  <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
+</footer>
+
+<script src="site.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>
