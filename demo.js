@@ -77,9 +77,13 @@
      and short when you are not — so the exhaust tells you what the throttle is
      doing without you having to look at the fuel bar. Dry tank, no flame.
 
-     Coordinates are local to the character, so the flame stays bolted to the
-     jetpack as she banks. The nozzle sits behind her and a little low. */
-  const FLAME_NOZZLE = { x: -13, y: 7 };
+     FLAME_ANCHOR is where the pack sits on the ARTWORK, measured off the
+     sprite standing upright: behind her, at body height. Because the character
+     is then leaned into a flight pose, that point has to be rotated by the
+     same angle to find where the pack ends up on screen — otherwise the flame
+     stays where her feet swung to. The flame itself still points straight back
+     along the direction of travel. */
+  const FLAME_ANCHOR = { x: -9, y: -3 };
   const FLAME = {
     thrust: { core: '#f0fff6', mid: '#5cff9d', outer: '#00b45e',
               len: 36, halfW: 8.5, sparks: 2, spark: '#5cff9d' },
@@ -172,8 +176,11 @@
 
   // Which cell of the sheet to show right now. Driven by wall clock, so the
   // animation holds its stated fps whatever the render rate is doing.
+  // `s.animating === false` pins it to the first frame — used to keep the
+  // character still until the jetpack has been fired for the first time.
   function frameRect(s) {
     if (s.frames <= 1) return null;
+    if (s.animating === false) return { sx: 0, sy: 0 };
     const i = Math.floor(performance.now() / 1000 * s.fps) % s.frames;
     return { sx: (i % s.cols) * s.fw, sy: Math.floor(i / s.cols) * s.fh };
   }
@@ -446,11 +453,18 @@
       shake: 0,
       flash: 0,
       thrusting: false,
+      // She holds a single frame until the jetpack fires for the first time,
+      // then runs for the rest of the flight. Standing still on the start
+      // screen reads as waiting; running on the spot reads as a bug.
+      hasFired: false,
       sparkDebt: 0,
+      // (SPRITES.plane.animating is pinned false just below, so she is also
+      //  still on the start screen, where update() never runs.)
       nextIdleLine: 6,
       nextMilestone: 800,
       warnedFuel: false,
     };
+    SPRITES.plane.animating = false;
   }
 
   /* ------------------------------ captain -------------------------------- */
@@ -606,12 +620,16 @@
        and stream away behind her. The nozzle has to be rotated into world
        coordinates by hand, since the particles are not inside her transform. */
     S.thrusting = canThrust;
+    if (canThrust) S.hasFired = true;
+    SPRITES.plane.animating = S.hasFired;
+
     if (S.fuel > 0) {
       const f = canThrust ? FLAME.thrust : FLAME.hover;
       S.sparkDebt += f.sparks * dt * 60;
       const tilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
       const cos = Math.cos(tilt), sin = Math.sin(tilt);
-      const nx = FLAME_NOZZLE.x - f.len * 0.5, ny = FLAME_NOZZLE.y;
+      const noz = flameNozzle();
+      const nx = noz.x - f.len * 0.5, ny = noz.y;
       while (S.sparkDebt >= 1) {
         S.sparkDebt -= 1;
         S.particles.push({
@@ -827,9 +845,20 @@
     ctx.globalAlpha = 1;
   }
 
+  // Where the pack actually appears once the flight pose has been applied.
+  function flameNozzle() {
+    const deg = (SPRITES.plane.ready && SPRITES.plane.rotate) || 0;
+    if (!deg) return FLAME_ANCHOR;
+    const r = deg * Math.PI / 180, c = Math.cos(r), s = Math.sin(r);
+    return {
+      x: FLAME_ANCHOR.x * c - FLAME_ANCHOR.y * s,
+      y: FLAME_ANCHOR.x * s + FLAME_ANCHOR.y * c,
+    };
+  }
+
   // One tongue of flame: a leaf shape tapering from the nozzle to a point.
   function flameTongue(len, halfW, color, blur, alpha) {
-    const n = FLAME_NOZZLE;
+    const n = flameNozzle();
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.shadowColor = color;

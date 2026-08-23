@@ -299,8 +299,9 @@ main, .topbar, footer { position: relative; z-index: 1; }
   background-size: calc(var(--cap) * 3) var(--cap);
   background-position-x: 0;
   image-rendering: pixelated;          /* keep the pixel art crisp when scaled */
-  animation: capIdle .75s steps(3) infinite;
   transition: border-color .3s, box-shadow .3s;
+  /* No idle loop: she holds still until she has something to say. A cat
+     animating forever in the corner pulls the eye away from the game. */
 }
 @keyframes capIdle {
   to { background-position-x: calc(var(--cap) * -3); }
@@ -317,9 +318,12 @@ main, .topbar, footer { position: relative; z-index: 1; }
   box-shadow: 0 0 18px rgba(92,255,157,.3);
 }
 
-/* Speaking pulses the box. Kept on a wrapper-free element by animating only
-   transform and shadow, so it composes with the idle animation above. */
-.cap-portrait.talking { animation: capIdle .75s steps(3) infinite, capTalk .45s ease-out; }
+/* Speaking is the only thing that animates her: three cycles of the strip
+   while the new line lands, plus one pulse of the box, then back to still.
+   JS re-adds .talking on every line, which restarts both. */
+.cap-portrait.talking {
+  animation: capIdle .45s steps(3) 3, capTalk .45s ease-out;
+}
 @keyframes capTalk {
   0%   { transform: scale(1);    }
   40%  { transform: scale(1.09); }
