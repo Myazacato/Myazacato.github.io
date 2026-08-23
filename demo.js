@@ -177,7 +177,7 @@
   // Which cell of the sheet to show right now. Driven by wall clock, so the
   // animation holds its stated fps whatever the render rate is doing.
   // `s.animating === false` pins it to the first frame — used to keep the
-  // character still until the jetpack has been fired for the first time.
+  // character still except while her jetpack is actually firing.
   function frameRect(s) {
     if (s.frames <= 1) return null;
     if (s.animating === false) return { sx: 0, sy: 0 };
@@ -453,13 +453,7 @@
       shake: 0,
       flash: 0,
       thrusting: false,
-      // She holds a single frame until the jetpack fires for the first time,
-      // then runs for the rest of the flight. Standing still on the start
-      // screen reads as waiting; running on the spot reads as a bug.
-      hasFired: false,
       sparkDebt: 0,
-      // (SPRITES.plane.animating is pinned false just below, so she is also
-      //  still on the start screen, where update() never runs.)
       nextIdleLine: 6,
       nextMilestone: 800,
       warnedFuel: false,
@@ -620,8 +614,9 @@
        and stream away behind her. The nozzle has to be rotated into world
        coordinates by hand, since the particles are not inside her transform. */
     S.thrusting = canThrust;
-    if (canThrust) S.hasFired = true;
-    SPRITES.plane.animating = S.hasFired;
+    // Legs run only while the jetpack is firing. Let go and she settles onto
+    // a single frame, so she is never running on the spot.
+    SPRITES.plane.animating = canThrust;
 
     if (S.fuel > 0) {
       const f = canThrust ? FLAME.thrust : FLAME.hover;
