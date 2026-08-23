@@ -30,8 +30,21 @@
   /* ----------------------------- tuning --------------------------------- */
 
   const PLANE_X  = 190;   // the plane holds station here; the world moves past it
-  const PLAY_TOP = 62;
+  const PLAY_TOP = 62;    // top of the AUTHORED band — not a ceiling any more
   const FLOOR    = 486;
+  const PLANE_R  = 20;    // collision radius, grown with the sprite
+
+  /* ------------------------------- camera --------------------------------
+     There is no ceiling. Fly high enough and the camera follows, the ground
+     drops away below, and the sky opens out — which is why every world draw
+     goes through a translate and why entity Y values are world, not screen.
+
+     The camera only ever moves UP. Letting it track downward as well would
+     make the floor drift around, and the floor is the one fixed thing the
+     player judges everything else against. */
+  const CAM_REST_Y = 320;   // she sits here until she climbs past it
+  const CAM_LERP   = 5.2;   // how hard the camera chases, per second
+  const SKY_RANGE  = 1500;  // altitude over which the sky fully changes
 
   // Speed curve, straight from the Godot build. The creep never stops, so the
   // lane is what eventually ends an endless run.
@@ -84,7 +97,22 @@
 
   // How long a pad plays its bounce for after being struck. Each pad keeps its
   // own timer, so one springing does not set the whole lane wobbling.
-  const PAD_ANIM = 0.4;
+  const PAD_ANIM = 0.2;      // twice as fast as it was
+
+  /* -------------------------------- fan ----------------------------------
+     A floor-mounted updraught. Stand in the column and it lifts you — gently,
+     and only up to a ceiling of its own, so it is a free ride rather than a
+     free win. Costs no fuel, which is the point: it is the poor pilot's
+     jetpack, and the reason to hug the deck despite the deck being lethal. */
+  const FAN_W       = 92;    // width of the column
+  const FAN_REACH   = 300;   // how far up the draught still pulls
+  const FAN_LIFT    = -1750; // acceleration while inside it
+  const FAN_VEL_CAP = -300;  // it will not push you faster than this
+
+  /* Cargo shown as hearts rather than a bar. Sparse on purpose — five states
+     read at a glance where a smooth bar just looks like it is always half
+     full. Each heart is CARGO_MAX / HEARTS worth of cargo. */
+  const HEARTS = 5;
 
   /* ------------------------------- flame ---------------------------------
      The jetpack burns green and hard while you are climbing, and idles yellow
@@ -159,9 +187,9 @@
     // the bank angle. The run cycle is drawn standing upright; leaning it over
     // turns the stance into a forward flight pose without redrawing anything.
     // 0 stands her up, 90 lays her flat.
-    plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12, rotate: 38 },
+    plane: { src: 'assets/game/dog-run.png', w: 72, h: 72, frames: 5, fps: 12, rotate: 38 },
     coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
-    fuel:  { src: 'assets/game/fuel.png', w: 64, h: 64 },
+    fuel:  { src: 'assets/game/fuel.png', w: 38, h: 38 },
     ball:  { src: 'assets/game/ball.png', w: 44, h: 44 },
     // Frame 1 is the cable at rest; the rest are the bounce. Driven per pad
     // rather than on a clock, so a pad only moves when it is actually hit.
@@ -265,6 +293,7 @@
       { dx: 420, y: 320, t: 'coin' }, { dx: 490, y: 370, t: 'coin' },
       { dx: 560, y: 420, t: 'coin' },
       { dx: 280, y: 170, t: 'fuel' }, { dx: 140, y: 210, t: 'fuel' },
+      { dx:  90, y: 468, t: 'tramp' }, { dx: 470, y: 468, t: 'tramp' },
       { dx: 420, y: 210, t: 'fuel' }, { dx:  70, y: 300, t: 'fuel' },
       { dx: 490, y: 300, t: 'fuel' }, { dx: 350, y: 175, t: 'fuel' },
     ]},
@@ -272,22 +301,23 @@
       { dx:   0, y: 300, t: 'fuel' }, { dx: 200, y: 250, t: 'fuel' },
       { dx: 400, y: 200, t: 'fuel' }, { dx: 560, y: 250, t: 'fuel' },
       { dx: 100, y: 180, t: 'fuel' }, { dx: 300, y: 150, t: 'fuel' },
+      { dx: 240, y: 470, t: 'fan' }, { dx: 520, y: 468, t: 'tramp' },
       { dx: 480, y: 320, t: 'fuel' },
       { dx: 100, y: 380, t: 'coin' },
       { dx: 300, y: 340, t: 'coin' }, { dx: 500, y: 300, t: 'coin' },
     ]},
     { name: 'hop_pads', difficulty: 1, length: 700, entries: [
-      { dx:   0, y: 452, t: 'tramp' }, { dx:  60, y: 330, t: 'coin' },
-      { dx: 120, y: 260, t: 'coin' },  { dx: 260, y: 452, t: 'tramp' },
+      { dx:   0, y: 468, t: 'tramp' }, { dx:  60, y: 330, t: 'coin' },
+      { dx: 120, y: 260, t: 'coin' },  { dx: 260, y: 468, t: 'tramp' },
       { dx: 320, y: 330, t: 'coin' },  { dx: 380, y: 260, t: 'coin' },
-      { dx: 520, y: 452, t: 'tramp' }, { dx: 300, y: 150, t: 'ball' },
+      { dx: 520, y: 468, t: 'tramp' }, { dx: 300, y: 150, t: 'ball' },
       // At the apex of each bounce, so a good hop pays for itself.
       { dx: 170, y: 205, t: 'fuel' }, { dx: 430, y: 205, t: 'fuel' },
       { dx: 580, y: 320, t: 'fuel' }, { dx:  60, y: 400, t: 'fuel' },
       { dx: 330, y: 400, t: 'fuel' }, { dx: 620, y: 230, t: 'fuel' },
     ]},
     { name: 'low_road', difficulty: 1, length: 660, entries: [
-      { dx: 120, y: 170, t: 'zapper_h' }, { dx: 380, y: 170, t: 'zapper_h' },
+      { dx: 120, y: 170, t: 'zapper_h' }, { dx: 380, y: 200, t: 'zapper_m' },
       { dx: 100, y: 400, t: 'coin' }, { dx: 180, y: 400, t: 'coin' },
       { dx: 260, y: 400, t: 'coin' }, { dx: 340, y: 400, t: 'coin' },
       { dx: 420, y: 400, t: 'coin' },
@@ -296,7 +326,7 @@
       { dx: 340, y: 448, t: 'fuel' }, { dx: 600, y: 400, t: 'fuel' },
     ]},
     { name: 'high_road', difficulty: 1, length: 660, entries: [
-      { dx: 120, y: 400, t: 'zapper_h' }, { dx: 380, y: 400, t: 'zapper_h' },
+      { dx: 120, y: 400, t: 'zapper_h' }, { dx: 380, y: 360, t: 'zapper_m' },
       { dx: 100, y: 160, t: 'coin' }, { dx: 180, y: 160, t: 'coin' },
       { dx: 260, y: 160, t: 'coin' }, { dx: 340, y: 160, t: 'coin' },
       { dx: 420, y: 160, t: 'coin' },
@@ -311,6 +341,7 @@
       { dx: 600, y: 300, t: 'coin' }, { dx: 240, y: 170, t: 'ball' },
       // In the gaps between pillars, where you have to weave anyway.
       { dx: 120, y: 380, t: 'fuel' }, { dx: 360, y: 160, t: 'fuel' },
+      { dx: 660, y: 470, t: 'fan' },
       { dx: 600, y: 180, t: 'fuel' }, { dx:  60, y: 300, t: 'fuel' },
       { dx: 300, y: 240, t: 'fuel' }, { dx: 540, y: 300, t: 'fuel' },
     ]},
@@ -326,7 +357,7 @@
       { dx: 240, y: 345, t: 'fuel' }, { dx: 560, y: 240, t: 'fuel' },
     ]},
     { name: 'greed_shelf', difficulty: 2, length: 680, entries: [
-      { dx: 150, y: 300, t: 'zapper_h' }, { dx: 430, y: 300, t: 'zapper_h' },
+      { dx: 150, y: 300, t: 'zapper_h' }, { dx: 430, y: 290, t: 'zapper_m' },
       // The good money sits behind the beams. That is the bait.
       { dx: 150, y: 130, t: 'coin' }, { dx: 230, y: 120, t: 'coin' },
       { dx: 310, y: 115, t: 'coin' }, { dx: 390, y: 120, t: 'coin' },
@@ -467,6 +498,7 @@
       score: 0,
       speed: BASE_SCROLL_SPEED * SPEED_MULT,
       planeY: 300,
+      camY: 0,
       vel: 0,
       fuel: FUEL_MAX,
       cargo: CARGO_MAX,
@@ -552,10 +584,16 @@
     switch (t) {
       case 'coin':     S.ents.push({ t, x, y, r: 11, spin: Math.random() * 6.28, dead: false }); break;
       // r scales with the icon so what you see stays what you can grab.
-      case 'fuel':     S.ents.push({ t, x, y, r: 30, dead: false }); break;
+      case 'fuel':     S.ents.push({ t, x, y, r: 19, dead: false }); break;
       case 'ball':     S.ents.push({ t, x, y, r: 24, dead: false }); break;
+      case 'fan':      S.ents.push({ t, x, y, w: FAN_W, h: 22, dead: false }); break;
       case 'tramp':    S.ents.push({ t, x, y, w: 100, h: 18, animT: 0, dead: false }); break;
       case 'zapper_h': S.ents.push({ t, x, y, w: 168, h: 13, dead: false }); break;
+      // A zapper that patrols up and down. baseY is where it was authored;
+      // it swings +/- range around that, so a chunk still reads as designed.
+      case 'zapper_m': S.ents.push({ t, x, y, baseY: y, range: 110, rate: 1.1,
+                                     phase: Math.random() * 6.28,
+                                     w: 168, h: 13, dead: false }); break;
       case 'zapper_v': S.ents.push({ t, x, y, w: 13, h: 168, dead: false }); break;
     }
   }
@@ -618,10 +656,28 @@
     /* --- flight --- */
     const canThrust = holding && S.fuel > 0;
     S.vel += (canThrust ? THRUST : GRAVITY) * dt;
+
+    /* --- fan updraught ---
+       Checked before the velocity clamp so it stacks with gravity rather than
+       replacing it: inside the column you still fall, just far more slowly,
+       and above FAN_VEL_CAP it stops adding lift so the fan cannot fling you
+       out of the level. */
+    S.inFan = false;
+    for (const e of S.ents) {
+      if (e.t !== 'fan' || e.dead) continue;
+      const above = S.planeY < e.y && S.planeY > e.y - FAN_REACH;
+      if (above && Math.abs(e.x - PLANE_X) < FAN_W / 2 + PLANE_R) {
+        S.inFan = true;
+        // Falls off with height, so the top of the column is a soft edge.
+        const strength = 1 - (e.y - S.planeY) / FAN_REACH;
+        if (S.vel > FAN_VEL_CAP) S.vel += FAN_LIFT * strength * dt;
+      }
+    }
+
     S.vel = Math.max(-VEL_CLAMP, Math.min(VEL_CLAMP, S.vel));
     S.planeY += S.vel * dt;
 
-    if (S.planeY < PLAY_TOP) { S.planeY = PLAY_TOP; S.vel = Math.max(S.vel, 120); }
+    // No ceiling. She can climb as far as fuel allows; the camera follows.
     if (S.planeY > FLOOR) {
       S.planeY = FLOOR;
       if (S.shield) {
@@ -706,7 +762,7 @@
     maybeSpawnChunk();
 
     /* --- entities --- */
-    const px = PLANE_X, pr = 17;
+    const px = PLANE_X, pr = PLANE_R;
     for (const e of S.ents) {
       e.x -= dx;
       if (e.x < -260) e.dead = true;
@@ -740,7 +796,10 @@
           e.animT = PAD_ANIM;          // this pad springs; the others stay put
           burst(e.x, e.y, '#a78bfa', 10);
         }
-      } else if (e.t === 'zapper_h' || e.t === 'zapper_v') {
+      } else if (e.t === 'zapper_h' || e.t === 'zapper_v' || e.t === 'zapper_m') {
+        // Patrolling zappers ride a sine around where they were authored, so
+        // the chunk still reads as designed — the beam just sweeps the gap.
+        if (e.t === 'zapper_m') e.y = e.baseY + Math.sin(S.t * e.rate + e.phase) * e.range;
         if (!e.hitCooldown && hitsRect(px, S.planeY, pr, e)) {
           e.hitCooldown = 0.6;
           if (S.shield) {
@@ -762,6 +821,14 @@
       p.life -= dt;
     }
     S.particles = S.particles.filter(p => p.life > 0);
+
+    /* --- camera ---
+       Chases upward only, and never past 0, so the ground stays put until she
+       actually climbs above the rest line. Exponential so it eases rather than
+       locking rigidly to her, which would make the whole world jitter with
+       every thrust tap. */
+    const camTarget = Math.min(0, S.planeY - CAM_REST_Y);
+    S.camY += (camTarget - S.camY) * Math.min(1, dt * CAM_LERP);
 
     S.shake = Math.max(0, S.shake - dt * 34);
     S.flash = Math.max(0, S.flash - dt * 2.2);
@@ -792,29 +859,45 @@
       ctx.translate((Math.random() - 0.5) * S.shake, (Math.random() - 0.5) * S.shake);
     }
 
-    const alt = 1 - (S.planeY - PLAY_TOP) / (FLOOR - PLAY_TOP);
+    /* Sky by ALTITUDE, not by position on screen. Now that the camera can
+       climb, screen position says nothing about how high she is — the two
+       came apart the moment the ceiling was removed. Three stops so the
+       transition has a middle rather than washing straight from one to the
+       other over a very long climb. */
+    const altitude = Math.max(0, FLOOR - S.planeY);
+    const alt = Math.min(1, altitude / SKY_RANGE);
     const mix = (a, b) => Math.round(a + (b - a) * alt);
     const sky = `rgb(${mix(GROUND_SKY[0], HIGH_SKY[0])},${mix(GROUND_SKY[1], HIGH_SKY[1])},${mix(GROUND_SKY[2], HIGH_SKY[2])})`;
+    const deep = `rgb(${mix(5, 2)},${mix(3, 6)},${mix(11, 26)})`;
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, sky);
-    g.addColorStop(1, '#05030b');
+    g.addColorStop(1, deep);
     ctx.fillStyle = g;
     ctx.fillRect(-20, -20, W + 40, H + 40);
 
+    // Stars live in screen space and thicken with altitude, so climbing feels
+    // like leaving the smog rather than just panning up.
     for (const s of stars) {
       s.x -= S.speed * 0.14 * s.z * (1 / 60);
       if (s.x < -4) { s.x = W + 4; s.y = Math.random() * H; }
-      ctx.globalAlpha = 0.22 + s.z * 0.5;
+      ctx.globalAlpha = (0.22 + s.z * 0.5) * (0.55 + alt * 0.75);
       ctx.fillStyle = '#9fd8ff';
       ctx.fillRect(s.x, s.y, s.r, s.r);
     }
     ctx.globalAlpha = 1;
+
+    // Everything from here is in WORLD space; the camera offset puts it on
+    // screen. The HUD is drawn after the restore so it never moves.
+    ctx.save();
+    ctx.translate(0, -S.camY);
 
     drawFloor();
     for (const e of S.ents) drawEntity(e);
     drawParticles();
     drawPlane();
     drawShield();   // over her, so it reads as a bubble she is sitting inside
+
+    ctx.restore();
 
     if (S.flash > 0) {
       ctx.fillStyle = `rgba(255,77,109,${S.flash * 0.3})`;
@@ -838,12 +921,16 @@
     ctx.strokeStyle = hot ? 'rgba(255,77,109,.22)' : 'rgba(255,43,214,.14)';
     ctx.lineWidth = 1;
     const off = S.scrolled % 80;
+    // Run the perspective lines well past the old screen height: with the
+    // camera raised, world Y = H is no longer the bottom of the view.
+    const deckDepth = FLOOR + 18 + 420;
     for (let x = -off; x < W; x += 80) {
-      ctx.beginPath(); ctx.moveTo(x, FLOOR + 18); ctx.lineTo(x - 40, H); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, FLOOR + 18);
+      ctx.lineTo(x - 220, deckDepth);
+      ctx.stroke();
     }
-
-    ctx.strokeStyle = 'rgba(0,240,255,.16)';
-    ctx.beginPath(); ctx.moveTo(0, PLAY_TOP - 12); ctx.lineTo(W, PLAY_TOP - 12); ctx.stroke();
+    // No ceiling line any more — there is no ceiling.
   }
 
   function glow(color, blur, fn) {
@@ -918,13 +1005,43 @@
         }
         break;
       }
+      case 'fan': {
+        // The housing, then the column above it. The column is drawn as rising
+        // chevrons so the direction of the push is obvious before you enter it.
+        glow('#7ee8ff', 12, () => {
+          ctx.fillStyle = '#7ee8ff';
+          ctx.fillRect(e.x - e.w / 2, e.y - e.h / 2, e.w, e.h);
+          ctx.fillStyle = '#0c1c24';
+          for (let i = -3; i <= 3; i++) {
+            ctx.fillRect(e.x + i * 11 - 2, e.y - e.h / 2 + 4, 4, e.h - 8);
+          }
+        });
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 6; i++) {
+          // Each chevron drifts upward on its own loop.
+          const p = ((S.t * 0.85 + i / 6) % 1);
+          const y = e.y - 14 - p * FAN_REACH;
+          ctx.globalAlpha = (1 - p) * 0.32;
+          ctx.strokeStyle = '#7ee8ff';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(e.x - e.w / 2 + 8, y + 10);
+          ctx.lineTo(e.x, y);
+          ctx.lineTo(e.x + e.w / 2 - 8, y + 10);
+          ctx.stroke();
+        }
+        ctx.restore();
+        break;
+      }
       case 'zapper_h':
+      case 'zapper_m':
       case 'zapper_v': {
         /* A ray rather than a bar: three stacked beams, each narrower and
            hotter than the last, ending in a near-white core. The flicker mixes
            two rates so it crackles instead of throbbing. */
         const flick = 0.78 + Math.sin(S.t * 27) * 0.14 + Math.sin(S.t * 9) * 0.08;
-        const horiz = e.t === 'zapper_h';
+        const horiz = e.t !== 'zapper_v';   // zapper_m patrols but stays horizontal
         const len = horiz ? e.w : e.h;
         const beam = (thick, color, alpha, blur) => {
           ctx.save();
@@ -1108,9 +1225,20 @@
 
     bar(400, 'FUEL', S.fuel / FUEL_MAX, S.fuel < 25 ? '#ff4d6d' : '#5cff9d');
 
+    /* Cargo as hearts. Widely spaced on purpose: five discrete states read
+       instantly, where a smooth bar always looks vaguely half full. */
     const cargoFrac = S.cargo / CARGO_MAX;
-    const cargoCol = cargoFrac > 0.5 ? '#00f0ff' : cargoFrac > 0.25 ? '#ffd75c' : '#ff4d6d';
-    bar(570, 'CARGO', cargoFrac, cargoCol);
+    const heartCol = cargoFrac > 0.5 ? '#ff5a7a' : cargoFrac > 0.25 ? '#ffb44d' : '#ff4d6d';
+    ctx.textAlign = 'left';
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.fillStyle = '#5c6584';
+    ctx.fillText('CARGO', 570, 15);
+    const perHeart = CARGO_MAX / HEARTS;
+    for (let i = 0; i < HEARTS; i++) {
+      const left = S.cargo - i * perHeart;
+      const fill = left >= perHeart * 0.999 ? 1 : left > 0 ? 0.42 : 0.13;
+      heart(580 + i * 30, 28, 8.5, fill, heartCol);
+    }
 
     // A shield protects the cargo rather than repairing it, so the bar does not
     // move when you pick one up. Without a chip here that reads as "nothing
@@ -1150,6 +1278,23 @@
     }
 
     ctx.restore();
+
+    // One heart, drawn from two lobes and a point. `fill` doubles as opacity,
+    // so a spent heart is the same shape ghosted rather than a different one —
+    // the row keeps its rhythm as you lose them.
+    function heart(cx, cy, r, fill, color) {
+      ctx.save();
+      ctx.globalAlpha = fill;
+      ctx.fillStyle = color;
+      if (fill > 0.5) { ctx.shadowColor = color; ctx.shadowBlur = 10; }
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + r * 0.85);
+      ctx.bezierCurveTo(cx - r * 1.5, cy - r * 0.35, cx - r * 0.55, cy - r * 1.15, cx, cy - r * 0.35);
+      ctx.bezierCurveTo(cx + r * 0.55, cy - r * 1.15, cx + r * 1.5, cy - r * 0.35, cx, cy + r * 0.85);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
 
     function bar(x, label, frac, color) {
       ctx.textAlign = 'left';

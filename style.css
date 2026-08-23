@@ -451,7 +451,7 @@ main, .topbar, footer { position: relative; z-index: 1; }
 
 .canvas-wrap { position: relative; line-height: 0; flex: 1; min-width: 0; }
 
-/* Title-screen photo, tucked into the bottom-left of the play area.
+/* Title-screen photo, tucked into the bottom-right of the play area.
 
    It has to sit ABOVE the overlay, not below it: the overlay's backdrop is
    90% opaque, and underneath it the photo washed out to a grey ghost. It is
@@ -460,7 +460,7 @@ main, .topbar, footer { position: relative; z-index: 1; }
    instead of swamping it on small screens. */
 .title-photo {
   position: absolute;
-  left: 1.5%;
+  right: 1.5%;
   bottom: 0;
   width: 26%;
   max-width: 210px;
@@ -499,10 +499,14 @@ main, .topbar, footer { position: relative; z-index: 1; }
   padding: 24px;
   line-height: 1.6;
   transition: opacity .25s;
-  /* The results list is taller than the intro copy; on short viewports it must
-     scroll inside the frame rather than push the "Fly again" button out of it. */
+  /* The results list can run taller than the intro copy, so it still needs to
+     be reachable — but a scrollbar down the side of the game looks broken, so
+     the bar itself is hidden on every engine. Scrolling still works. */
   overflow-y: auto;
+  scrollbar-width: none;              /* Firefox */
+  -ms-overflow-style: none;           /* old Edge */
 }
+.overlay::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .overlay.hidden { opacity: 0; pointer-events: none; }
 
 .overlay-inner { max-width: 46ch; }
