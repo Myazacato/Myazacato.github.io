@@ -82,6 +82,10 @@
   const SHIELD_SIZE   = 74;    // drawn diameter, wide enough to enclose her
   const SHIELD_BOUNCE = -880;  // upward kick when the bubble hits the deck
 
+  // How long a pad plays its bounce for after being struck. Each pad keeps its
+  // own timer, so one springing does not set the whole lane wobbling.
+  const PAD_ANIM = 0.4;
+
   /* ------------------------------- flame ---------------------------------
      The jetpack burns green and hard while you are climbing, and idles yellow
      and short when you are not — so the exhaust tells you what the throttle is
@@ -155,10 +159,13 @@
     // the bank angle. The run cycle is drawn standing upright; leaning it over
     // turns the stance into a forward flight pose without redrawing anything.
     // 0 stands her up, 90 lays her flat.
-    plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12, rotate: 62 },
+    plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12, rotate: 38 },
     coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
     fuel:  { src: 'assets/game/fuel.png', w: 64, h: 64 },
     ball:  { src: 'assets/game/ball.png', w: 44, h: 44 },
+    // Frame 1 is the cable at rest; the rest are the bounce. Driven per pad
+    // rather than on a clock, so a pad only moves when it is actually hit.
+    pad:   { src: 'assets/game/pad.png', w: 100, h: 36, frames: 6 },
   };
 
   // Each entry gains .img (an Image) and .ready (true once it decodes).
@@ -543,7 +550,7 @@
       // r scales with the icon so what you see stays what you can grab.
       case 'fuel':     S.ents.push({ t, x, y, r: 30, dead: false }); break;
       case 'ball':     S.ents.push({ t, x, y, r: 24, dead: false }); break;
-      case 'tramp':    S.ents.push({ t, x, y, w: 76, h: 15, dead: false }); break;
+      case 'tramp':    S.ents.push({ t, x, y, w: 100, h: 18, animT: 0, dead: false }); break;
       case 'zapper_h': S.ents.push({ t, x, y, w: 168, h: 13, dead: false }); break;
       case 'zapper_v': S.ents.push({ t, x, y, w: 13, h: 168, dead: false }); break;
     }
@@ -723,9 +730,11 @@
           burst(e.x, e.y, '#5cff9d', 8);
         }
       } else if (e.t === 'tramp') {
+        if (e.animT > 0) e.animT = Math.max(0, e.animT - dt);
         if (hitsRect(px, S.planeY, pr, e) && S.vel > 0) {
           S.vel = TRAMP_BOOST;
-          burst(e.x, e.y, '#00f0ff', 8);
+          e.animT = PAD_ANIM;          // this pad springs; the others stay put
+          burst(e.x, e.y, '#a78bfa', 10);
         }
       } else if (e.t === 'zapper_h' || e.t === 'zapper_v') {
         if (!e.hitCooldown && hitsRect(px, S.planeY, pr, e)) {
@@ -886,27 +895,61 @@
         break;
       }
       case 'tramp': {
-        glow('#00f0ff', 14, () => {
-          ctx.fillStyle = '#00f0ff';
-          ctx.fillRect(e.x - e.w / 2, e.y - e.h / 2, e.w, e.h);
-        });
+        const s = SPRITES.pad;
+        if (s.ready) {
+          // Frame 0 is the cable at rest. animT counts down only on the pad
+          // that was actually struck, so an untouched pad never moves.
+          const i = e.animT > 0
+            ? Math.min(s.frames - 1, Math.floor((1 - e.animT / PAD_ANIM) * s.frames))
+            : 0;
+          glow('#a78bfa', e.animT > 0 ? 16 : 8, () => {
+            ctx.drawImage(s.img, i * s.fw, 0, s.fw, s.fh,
+                          e.x - s.w / 2, e.y - s.h / 2, s.w, s.h);
+          });
+        } else {
+          glow('#a78bfa', 12, () => {
+            ctx.fillStyle = '#a78bfa';
+            ctx.fillRect(e.x - e.w / 2, e.y - e.h / 2, e.w, e.h);
+          });
+        }
         break;
       }
       case 'zapper_h':
       case 'zapper_v': {
-        const pulse = 0.72 + Math.sin(S.t * 11) * 0.28;
-        glow('#ff2bd6', 22 * pulse, () => {
-          ctx.fillStyle = `rgba(255,43,214,${pulse})`;
-          ctx.fillRect(e.x - e.w / 2, e.y - e.h / 2, e.w, e.h);
-          ctx.fillStyle = '#ff8ae6';
-          if (e.t === 'zapper_h') {
-            ctx.fillRect(e.x - e.w / 2 - 7, e.y - 12, 9, 24);
-            ctx.fillRect(e.x + e.w / 2 - 2, e.y - 12, 9, 24);
-          } else {
-            ctx.fillRect(e.x - 12, e.y - e.h / 2 - 7, 24, 9);
-            ctx.fillRect(e.x - 12, e.y + e.h / 2 - 2, 24, 9);
-          }
-        });
+        /* A ray rather than a bar: three stacked beams, each narrower and
+           hotter than the last, ending in a near-white core. The flicker mixes
+           two rates so it crackles instead of throbbing. */
+        const flick = 0.78 + Math.sin(S.t * 27) * 0.14 + Math.sin(S.t * 9) * 0.08;
+        const horiz = e.t === 'zapper_h';
+        const len = horiz ? e.w : e.h;
+        const beam = (thick, color, alpha, blur) => {
+          ctx.save();
+          ctx.globalAlpha = alpha * flick;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = blur;
+          ctx.fillStyle = color;
+          const w = horiz ? len : thick, h = horiz ? thick : len;
+          ctx.fillRect(e.x - w / 2, e.y - h / 2, w, h);
+          ctx.restore();
+        };
+        beam(26, '#ff1030', 0.22, 30);   // outer bloom
+        beam(13, '#ff3347', 0.60, 20);   // body
+        beam(5,  '#ff8a94', 0.95, 12);   // hot inner
+        beam(1.6, '#fff0f0', 1.0, 8);    // white-hot core
+
+        // Emitters at both ends, so the ray reads as fired from something.
+        ctx.save();
+        ctx.shadowColor = '#ff1030';
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = '#ff5566';
+        if (horiz) {
+          ctx.fillRect(e.x - len / 2 - 8, e.y - 13, 10, 26);
+          ctx.fillRect(e.x + len / 2 - 2, e.y - 13, 10, 26);
+        } else {
+          ctx.fillRect(e.x - 13, e.y - len / 2 - 8, 26, 10);
+          ctx.fillRect(e.x - 13, e.y + len / 2 - 2, 26, 10);
+        }
+        ctx.restore();
         break;
       }
     }
