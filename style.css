@@ -282,36 +282,48 @@ main, .topbar, footer { position: relative; z-index: 1; }
   line-height: 1.5;
 }
 
+/* Captain Meow is a three-frame 192x64 strip. Rather than a canvas or a
+   script, the idle is a CSS step animation: the background is sized to three
+   portrait-widths and slid left one whole width per step, so each step lands
+   exactly on a frame boundary. Percentages would not — with steps(3), 0%-100%
+   lands on thirds of the *travel*, not of the image. */
 .cap-portrait {
-  width: 78px;
-  height: 78px;
+  --cap: 78px;
+  width: var(--cap);
+  height: var(--cap);
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--bg-2);
-  padding: 6px;
+  background-color: var(--bg-2);
+  background-image: url('assets/game/captain-meow.png');
+  background-repeat: no-repeat;
+  background-size: calc(var(--cap) * 3) var(--cap);
+  background-position-x: 0;
+  image-rendering: pixelated;          /* keep the pixel art crisp when scaled */
+  animation: capIdle .75s steps(3) infinite;
   transition: border-color .3s, box-shadow .3s;
 }
-.cap-portrait svg { width: 100%; height: 100%; display: block; }
+@keyframes capIdle {
+  to { background-position-x: calc(var(--cap) * -3); }
+}
 
-.cap-head, .cap-ear { fill: #2b2140; stroke: var(--cyan); stroke-width: 2.5; }
-.cap-eye    { fill: var(--magenta); }
-.cap-mouth  { fill: none; stroke: var(--cyan); stroke-width: 2.5; stroke-linecap: round; }
-.cap-whisker{ stroke: rgba(0,240,255,.4); stroke-width: 2; stroke-linecap: round; }
+/* Mood is set from JS on the .captain wrapper. The artwork cannot be
+   recoloured, so the mood reads through the frame around it instead. */
+.captain[data-mood="alarm"] .cap-portrait {
+  border-color: rgba(255,77,109,.75);
+  box-shadow: 0 0 18px rgba(255,77,109,.35);
+}
+.captain[data-mood="good"] .cap-portrait {
+  border-color: rgba(92,255,157,.7);
+  box-shadow: 0 0 18px rgba(92,255,157,.3);
+}
 
-/* Mood is set from JS on the .captain wrapper. */
-.captain[data-mood="alarm"] .cap-head,
-.captain[data-mood="alarm"] .cap-ear   { stroke: #ff4d6d; }
-.captain[data-mood="alarm"] .cap-mouth { stroke: #ff4d6d; d: path("M42 72 Q50 64 58 72"); }
-.captain[data-mood="alarm"] .cap-eye   { fill: #ff4d6d; }
-.captain[data-mood="good"] .cap-head,
-.captain[data-mood="good"] .cap-ear    { stroke: #5cff9d; }
-.captain[data-mood="good"] .cap-eye    { fill: #5cff9d; }
-
-.cap-portrait.talking { animation: capTalk .45s ease-out; }
+/* Speaking pulses the box. Kept on a wrapper-free element by animating only
+   transform and shadow, so it composes with the idle animation above. */
+.cap-portrait.talking { animation: capIdle .75s steps(3) infinite, capTalk .45s ease-out; }
 @keyframes capTalk {
-  0%   { transform: scale(1);    box-shadow: 0 0 0 rgba(0,240,255,0); }
-  40%  { transform: scale(1.07); box-shadow: 0 0 22px rgba(0,240,255,.45); }
-  100% { transform: scale(1);    box-shadow: 0 0 0 rgba(0,240,255,0); }
+  0%   { transform: scale(1);    }
+  40%  { transform: scale(1.09); }
+  100% { transform: scale(1);    }
 }
 
 .cap-name {
@@ -780,7 +792,8 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
     border-bottom: 1px solid var(--line);
     padding: 12px 14px;
   }
-  .cap-portrait { width: 52px; height: 52px; flex: 0 0 52px; }
+  /* Only the one variable changes — the strip maths follows it. */
+  .cap-portrait { --cap: 52px; flex: 0 0 52px; }
   .cap-name { margin: 0; }
   .cap-role { display: none; }
   .cap-bubble { min-height: 0; flex: 1; padding: 8px 11px; }

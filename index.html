@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -75,17 +75,9 @@
 
         <!-- Captain Meow: dispatch, commentary, and general lack of confidence -->
         <aside class="captain" data-mood="calm">
-          <div class="cap-portrait" id="cap-portrait" aria-hidden="true">
-            <svg viewBox="0 0 100 100" role="img">
-              <path class="cap-ear" d="M18 34 L26 8 L44 24 Z"/>
-              <path class="cap-ear" d="M82 34 L74 8 L56 24 Z"/>
-              <rect class="cap-head" x="14" y="22" width="72" height="62" rx="20"/>
-              <ellipse class="cap-eye" cx="36" cy="50" rx="7" ry="9"/>
-              <ellipse class="cap-eye" cx="64" cy="50" rx="7" ry="9"/>
-              <path class="cap-mouth" d="M42 66 Q50 74 58 66"/>
-              <path class="cap-whisker" d="M8 58 H26 M8 66 H26 M92 58 H74 M92 66 H74"/>
-            </svg>
-          </div>
+          <!-- Three-frame idle, stepped across the box in CSS. See .cap-portrait. -->
+          <div class="cap-portrait" id="cap-portrait" role="img"
+               aria-label="Captain Meow, a red cat in uniform"></div>
           <p class="cap-name">CAPTAIN MEOW</p>
           <p class="cap-role">DISPATCH</p>
           <div class="cap-bubble">
@@ -314,7 +306,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=10"></script>
-<script src="demo.js?v=10"></script>
+<script src="site.js?v=11"></script>
+<script src="demo.js?v=11"></script>
 </body>
 </html>
