@@ -500,6 +500,10 @@
   // are `.captain[data-mood=...]`, so setting it anywhere else silently does
   // nothing.
   const capPanel = document.querySelector('.captain');
+  // Drives whether the captain panel is on screen. 'intro' hides her, so the
+  // title screen is just the game and the name.
+  const stage = document.querySelector('.game-stage');
+  const setStage = (v) => { if (stage) stage.dataset.state = v; };
   let sayLockUntil = 0;
 
   function say(kind, opts) {
@@ -1187,6 +1191,7 @@
 
     say(isRecord ? 'record' : 'dead', { force: true, hold: 5000 });
 
+    setStage('results');
     ovTitle.textContent = S.fuel <= 0 && S.cargo > 0 ? 'RUN ENDED' : 'CARGO DESTROYED';
     ovTitle.style.color = '#ff4d6d';
 
@@ -1263,6 +1268,7 @@
     overlay.classList.add('hidden');
     ovBtn.dataset.action = 'restart';
     running = true;
+    setStage('playing');
     say('start', { force: true, hold: 3200 });
     lastTime = performance.now();
     requestAnimationFrame(loop);

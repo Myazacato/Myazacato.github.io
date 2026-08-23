@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=20">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -68,10 +68,10 @@
     <div class="game-frame">
       <div class="game-chrome">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        <span class="chrome-title">STARPORT CONTROL &mdash; OPEN RUN &mdash; NO CEILING</span>
+        <span class="chrome-title">STARPORT CONTROL &mdash; OPEN RUN</span>
       </div>
 
-      <div class="game-stage">
+      <div class="game-stage" data-state="intro">
 
         <!-- Captain Meow: dispatch, commentary, and general lack of confidence -->
         <aside class="captain" data-mood="calm">
@@ -97,8 +97,8 @@
                   sit on it. When the cargo is gone, so are you.
                 </p>
               </div>
-              <p class="keys"><kbd>Space</kbd> / <kbd>click</kbd> / <kbd>tap</kbd> to climb &mdash; release to fall</p>
-              <button id="ov-btn" class="btn btn-primary" data-action="restart">Start run</button>
+              <p class="keys"><kbd>Space</kbd> / <kbd>click</kbd> to activate flying</p>
+              <button id="ov-btn" class="btn btn-cut" data-action="restart">Start run</button>
             </div>
           </div>
         </div>
@@ -306,7 +306,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=19"></script>
-<script src="demo.js?v=19"></script>
+<script src="site.js?v=20"></script>
+<script src="demo.js?v=20"></script>
 </body>
 </html>

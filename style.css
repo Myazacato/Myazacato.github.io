@@ -163,6 +163,49 @@ main, .topbar, footer { position: relative; z-index: 1; }
 }
 .btn-primary:hover { box-shadow: 0 8px 30px rgba(255,43,214,.28); }
 
+/* ---- cut-corner button ----
+   Traced from start-button.svg: two diagonally opposite corners chamfered,
+   top-left and bottom-right, everything else square.
+
+   The border is a gradient, which a plain `border` cannot do, so the two
+   layers are painted as backgrounds instead — fill clipped to the padding
+   box, gradient to the border box — and clip-path chamfers both at once. A
+   pseudo-element would have needed its own stacking context to sit under the
+   label; this way there is nothing to stack. */
+.btn-cut {
+  --cut: 9px;
+  position: relative;
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 15px 30px;
+  cursor: pointer;
+  color: #dff4ff;
+  border: 2px solid transparent;
+  border-radius: 0;
+  /* The fill has to be near-opaque. It sits on top of the gradient layer, so a
+     translucent fill lets the border colour bleed across the whole face and
+     the button reads as a bright slab instead of a dark key with a lit edge. */
+  background:
+    linear-gradient(180deg, rgba(11,14,32,.93), rgba(8,10,24,.90)) padding-box,
+    linear-gradient(105deg, #00dbea 0%, #2b7bff 55%, #6a5cff 100%) border-box;
+  clip-path: polygon(
+    var(--cut) 0, 100% 0,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0 100%, 0 var(--cut)
+  );
+  transition: color .18s, filter .18s, transform .18s;
+}
+.btn-cut:hover {
+  color: #fff;
+  filter: brightness(1.35) saturate(1.1);
+  transform: translateY(-2px);
+}
+.btn-cut:active { transform: translateY(0); }
+
 .hero-links {
   display: flex;
   flex-wrap: wrap;
@@ -271,7 +314,8 @@ main, .topbar, footer { position: relative; z-index: 1; }
 .game-stage { display: flex; align-items: stretch; }
 
 .captain {
-  flex: 0 0 190px;
+  flex: 0 0 auto;
+  width: 190px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -280,6 +324,19 @@ main, .topbar, footer { position: relative; z-index: 1; }
   background: var(--panel);
   border-right: 1px solid var(--line);
   line-height: 1.5;
+  overflow: hidden;
+  /* Width rather than display, so she slides in when the run starts instead
+     of the canvas snapping to a new size. */
+  transition: width .34s ease, opacity .28s ease, padding .34s ease;
+}
+
+/* No captain on the title screen — she arrives with the run. */
+.game-stage[data-state="intro"] .captain {
+  width: 0;
+  opacity: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right-width: 0;
 }
 
 /* Captain Meow is a three-frame 192x64 strip. Rather than a canvas or a
@@ -798,6 +855,9 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
   }
   /* Only the one variable changes — the strip maths follows it. */
   .cap-portrait { --cap: 52px; flex: 0 0 52px; }
+  /* Stacked layout: a width transition makes no sense here, so just drop her. */
+  .captain { width: auto; transition: none; }
+  .game-stage[data-state="intro"] .captain { display: none; }
   .cap-name { margin: 0; }
   .cap-role { display: none; }
   .cap-bubble { min-height: 0; flex: 1; padding: 8px 11px; }
