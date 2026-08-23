@@ -49,8 +49,7 @@
   const CARGO_MAX            = 50;
   const CARGO_HAZARD_DAMAGE  = 18;
   const CARGO_BOUNCE_DAMAGE  = 10;
-  const CARGO_HIGH_G_THRESH  = 350;
-  const CARGO_HIGH_G_DRAIN   = 8;
+  const CARGO_HIGH_G_THRESH  = 350;   // only used for hard-landing damage now
 
   // Sitting on the deck grinds the cargo down for as long as you stay there.
   // Against the halved cargo pool that is a bit over two seconds from full to
@@ -58,11 +57,11 @@
   const GROUND_BAND          = 6;    // px above FLOOR that still counts as grounded
   const CARGO_GROUND_DRAIN   = 22;   // per second
 
-  // Fuel burns four times faster than the original rate, so a tank lasts a
-  // quarter as long and canisters become the thing you fly toward rather than
-  // a bonus you pick up in passing. FUEL_ECONOMY is the single knob: 1 restores
-  // the original burn, lower makes fuel go further.
-  const FUEL_ECONOMY      = 4;
+  // FUEL_ECONOMY is the single knob for range: 1 is the original burn, higher
+  // drains faster. At 1.6 a full tank is worth about 15 seconds of gliding,
+  // 5.7 of continuous climbing, or 8 at half throttle — so canisters are
+  // something you steer toward rather than scramble between.
+  const FUEL_ECONOMY      = 1.6;
   const FUEL_MAX          = 100;
   const FUEL_DRAIN_IDLE   = 4.2 * FUEL_ECONOMY;
   const FUEL_DRAIN_THRUST = 11.0 * FUEL_ECONOMY;
@@ -638,11 +637,16 @@
       S.groundedFor = 0;
     }
 
-    // Sustained high-G flying wears the cargo down even without a collision.
-    if (Math.abs(S.vel) > CARGO_HIGH_G_THRESH) {
-      S.cargo = Math.max(0, S.cargo - CARGO_HIGH_G_DRAIN * dt);
-      if (S.cargo <= 0) { finish(); return; }
-    }
+    /* The Godot build bleeds cargo during sustained high-G flying. That is
+       removed here, and deliberately so: with gravity at 1500 and thrust at
+       -2750, ordinary flying crosses the 350 threshold within a fifth of a
+       second and basically never drops back under it, so the drain ran almost
+       continuously. Against the halved 50-point cargo pool that killed a run
+       in about six seconds with nothing on screen to explain why.
+
+       Every remaining way to lose cargo is something you can see happen: a
+       hazard, a hard landing, or grinding along the deck. If it comes back it
+       needs a threshold near the 700 clamp and a warning on the HUD. */
 
     /* --- fuel --- */
     S.fuel -= (canThrust ? FUEL_DRAIN_THRUST : FUEL_DRAIN_IDLE) * dt;
@@ -1060,6 +1064,16 @@
     const cargoFrac = S.cargo / CARGO_MAX;
     const cargoCol = cargoFrac > 0.5 ? '#00f0ff' : cargoFrac > 0.25 ? '#ffd75c' : '#ff4d6d';
     bar(570, 'CARGO', cargoFrac, cargoCol);
+
+    // A shield protects the cargo rather than repairing it, so the bar does not
+    // move when you pick one up. Without a chip here that reads as "nothing
+    // happened" — this is what tells you the protection is actually on.
+    if (S.shield) {
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 11px ui-monospace, monospace';
+      ctx.fillStyle = '#c9a2ff';
+      ctx.fillText('◍ SHIELD', 570, 44);
+    }
 
     ctx.textAlign = 'right';
     ctx.font = 'bold 17px ui-monospace, monospace';
