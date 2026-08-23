@@ -138,6 +138,10 @@
   const THRUST      = -2750;
   const VEL_CLAMP   = 700;
   const TRAMP_BOOST = -780;
+  // Dive: past DIVE_FROM the fall ramps toward DIVE_GRAVITY, so a long drop
+  // has weight to it instead of floating down at a constant rate.
+  const DIVE_FROM    = 260;
+  const DIVE_GRAVITY = 3400;
 
   // Spawner.
   const SPAWN_X = W + 90;
@@ -499,6 +503,7 @@
       speed: BASE_SCROLL_SPEED * SPEED_MULT,
       planeY: 300,
       camY: 0,
+      diving: 0,
       vel: 0,
       fuel: FUEL_MAX,
       cargo: CARGO_MAX,
@@ -510,6 +515,7 @@
       ents: [],
       particles: [],
       nextChunkAt: 260,
+      nextSkyAt: 0,
       chunksSinceBreather: 0,
       over: false,
       shake: 0,
@@ -561,6 +567,40 @@
 
   /* ---------------------------- spawning -------------------------------- */
 
+
+  /* --------------------------- sky hazards -------------------------------
+     The authored chunks all sit near the deck, so once the ceiling came off
+     the upper air was empty — safe, and therefore boring. These spawn
+     relative to how high she actually is, so the sky is never a free ride
+     and climbing has something to dodge and something to collect.
+
+     Spaced on distance like the chunks, but far sparser: up here the reward
+     is the altitude itself, and a dense field would just punish the climb. */
+  const SKY_FROM     = 200;    // altitude at which the upper air wakes up
+  const SKY_INTERVAL = 520;    // px of travel between sky spawns
+
+  function maybeSpawnSky() {
+    const altitude = FLOOR - S.planeY;
+    if (altitude < SKY_FROM) return;
+    if (S.scrolled < S.nextSkyAt) return;
+    S.nextSkyAt = S.scrolled + SKY_INTERVAL * (0.75 + Math.random() * 0.7);
+
+    // Placed around HER altitude, not a fixed band, so it keeps finding her
+    // however high she goes.
+    const band = S.planeY + (Math.random() - 0.5) * 260;
+    const roll = Math.random();
+
+    if (roll < 0.45) {
+      spawnEntry(SPAWN_X, band, 'zapper_m');
+    } else if (roll < 0.7) {
+      spawnEntry(SPAWN_X, band, 'zapper_h');
+    } else if (roll < 0.88) {
+      // A little payoff for being up here at all.
+      for (let i = 0; i < 4; i++) spawnEntry(SPAWN_X + i * 62, band - i * 14, 'coin');
+    } else {
+      spawnEntry(SPAWN_X, band, 'fuel');
+    }
+  }
   function maybeSpawnChunk() {
     if (S.scrolled < S.nextChunkAt) return;
 
@@ -655,7 +695,20 @@
 
     /* --- flight --- */
     const canThrust = holding && S.fuel > 0;
-    S.vel += (canThrust ? THRUST : GRAVITY) * dt;
+
+    /* Falling accelerates. Past DIVE_FROM the pull ramps toward DIVE_GRAVITY,
+       so coming down off a big climb is a plunge rather than a long drift --
+       height you gained is height you commit to losing. Thrusting cancels it
+       at once, so the dive is always a choice. */
+    let pull = GRAVITY;
+    if (!canThrust && S.vel > DIVE_FROM) {
+      const into = Math.min(1, (S.vel - DIVE_FROM) / (VEL_CLAMP - DIVE_FROM));
+      pull = GRAVITY + (DIVE_GRAVITY - GRAVITY) * into;
+      S.diving = into;
+    } else {
+      S.diving = 0;
+    }
+    S.vel += (canThrust ? THRUST : pull) * dt;
 
     /* --- fan updraught ---
        Checked before the velocity clamp so it stacks with gravity rather than
@@ -760,6 +813,7 @@
     }
 
     maybeSpawnChunk();
+    maybeSpawnSky();
 
     /* --- entities --- */
     const px = PLANE_X, pr = PLANE_R;
@@ -898,6 +952,8 @@
     drawShield();   // over her, so it reads as a bubble she is sitting inside
 
     ctx.restore();
+
+    drawDiveEffect();   // screen-space, so it must sit outside the camera translate
 
     if (S.flash > 0) {
       ctx.fillStyle = `rgba(255,77,109,${S.flash * 0.3})`;
@@ -1190,97 +1246,225 @@
     ctx.restore();
   }
 
+  /* Panel chrome shared by the HUD boxes: a chamfered rect with a cyan edge,
+     matching the cut-corner buttons on the page so the game and the site read
+     as one design rather than two. */
+  function panel(x, y, w, h, cut) {
+    const c = cut || 10;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + c, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h - c);
+    ctx.lineTo(x + w - c, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x, y + c);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(9,12,26,.72)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,240,255,.55)';
+    ctx.lineWidth = 1.4;
+    ctx.shadowColor = 'rgba(0,240,255,.35)';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function hudLabel(text, x, y, align) {
+    ctx.textAlign = align || 'left';
+    ctx.font = '12px ui-monospace, monospace';
+    ctx.fillStyle = '#7fb2c9';
+    ctx.fillText(text, x, y);
+  }
+
+  /* ---------------------------- altimeter --------------------------------
+     A radar altimeter, read the way the real instrument is: a needle sweeping
+     a dial rather than a number climbing. It is the one gauge you need while
+     busy not dying, and a shape reads faster than digits.
+
+     The sweep is deliberately non-linear. Near the deck is where altitude
+     actually matters, and a linear dial would leave the needle barely
+     twitching exactly there, so the first stretch of climb takes most of the
+     face. */
+  function drawAltimeter(cx, cy, r) {
+    const altitude = Math.max(0, FLOOR - S.planeY);
+    const norm = Math.min(1, Math.pow(altitude / SKY_RANGE, 0.62));
+
+    const START = Math.PI * 0.75;      // bottom-left
+    const SWEEP = Math.PI * 1.5;       // three-quarters of the face, clockwise
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, 6.2832);
+    ctx.fillStyle = 'rgba(6,14,20,.9)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,240,255,.45)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Long tick every fifth, short between, as the real dial reads.
+    for (let i = 0; i <= 40; i++) {
+      const a = START + (i / 40) * SWEEP;
+      const major = i % 5 === 0;
+      const inner = r - (major ? 10 : 5);
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+      ctx.lineTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2));
+      ctx.strokeStyle = major ? 'rgba(0,240,255,.85)' : 'rgba(0,240,255,.35)';
+      ctx.lineWidth = major ? 1.6 : 1;
+      ctx.stroke();
+    }
+
+    ctx.font = '8px ui-monospace, monospace';
+    ctx.fillStyle = 'rgba(180,230,245,.8)';
+    const marks = [0, 25, 50, 75, 100];
+    for (let i = 0; i < marks.length; i++) {
+      const a = START + (i / 4) * SWEEP;
+      ctx.fillText(String(marks[i]), cx + Math.cos(a) * (r - 19), cy + Math.sin(a) * (r - 19));
+    }
+
+    // The amber danger arc down at deck height, straight off the real gauge.
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 6, START, START + SWEEP * 0.12);
+    ctx.strokeStyle = 'rgba(255,180,60,.75)';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+
+    const a = START + norm * SWEEP;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(a);
+    ctx.shadowColor = '#ffb43c';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#ffb43c';
+    ctx.beginPath();
+    ctx.moveTo(r - 9, 0);
+    ctx.lineTo(-5, -3.4);
+    ctx.lineTo(-5, 3.4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.2, 0, 6.2832);
+    ctx.fillStyle = '#cfe9f5';
+    ctx.fill();
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+
+
+  /* Speed lines while diving. Drawn in SCREEN space on purpose: they are a
+     camera effect, not something in the world, so they must not slide with
+     the camera translate. Density and length both ride S.diving, so the
+     effect arrives with the speed rather than snapping on at a threshold. */
+  function drawDiveEffect() {
+    if (S.diving <= 0.02 || S.over) return;
+    const n = Math.floor(6 + S.diving * 26);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = '#9fd8ff';
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < n; i++) {
+      // Seeded off i and time so streaks flicker rather than crawl.
+      const sx = ((i * 137.5 + S.t * 40) % W);
+      const sy = ((i * 61.7 + S.t * 1500) % (H + 200)) - 100;
+      const len = 26 + S.diving * 90 * (0.4 + (i % 5) / 5);
+      ctx.globalAlpha = 0.10 + S.diving * 0.30;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx, sy + len);
+      ctx.stroke();
+    }
+    // A wash at the edges so the tunnel closes in as it gets fast.
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.78);
+    g.addColorStop(0, 'rgba(120,190,255,0)');
+    g.addColorStop(1, 'rgba(120,190,255,' + (S.diving * 0.16) + ')');
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
   function drawHUD() {
     ctx.save();
-    ctx.font = '12px ui-monospace, "JetBrains Mono", monospace';
+
+    /* ---- top strip: Distance | Fuel | Cargo Life ---- */
+    const PX = 34, PY = 14, PW = W - 68, PH = 50;
+    panel(PX, PY, PW, PH, 12);
+
+    hudLabel('Distance', PX + 24, PY + 20);
     ctx.textAlign = 'left';
+    ctx.font = 'bold 18px ui-monospace, monospace';
+    ctx.fillStyle = '#dff4ff';
+    ctx.fillText(String(Math.floor(S.distance)), PX + 24, PY + 40);
 
-    ctx.fillStyle = 'rgba(8,6,15,.72)';
-    ctx.fillRect(0, 0, W, 46);
-    ctx.strokeStyle = 'rgba(42,33,64,.9)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, 46.5); ctx.lineTo(W, 46.5); ctx.stroke();
+    const fx = PX + 250;
+    hudLabel('Fuel', fx, PY + 20);
+    const ff = Math.max(0, Math.min(1, S.fuel / FUEL_MAX));
+    ctx.fillStyle = 'rgba(60,50,90,.55)';
+    ctx.fillRect(fx, PY + 28, 212, 11);
+    ctx.fillStyle = S.fuel < 25 ? '#ff4d6d' : '#7cf2a8';
+    ctx.fillRect(fx, PY + 28, 212 * ff, 11);
 
-    // Score leads — it is the whole point of the run now.
-    ctx.fillStyle = '#5c6584';
-    ctx.font = '10px ui-monospace, monospace';
-    ctx.fillText('SCORE', 18, 15);
-    ctx.fillStyle = '#d1e6ff';
-    ctx.font = 'bold 20px ui-monospace, monospace';
-    ctx.fillText(String(Math.floor(S.score)), 18, 36);
-
-    ctx.fillStyle = '#5c6584';
-    ctx.font = '10px ui-monospace, monospace';
-    ctx.fillText('BEST', 150, 15);
-    ctx.fillStyle = '#ffd75c';
-    ctx.font = 'bold 15px ui-monospace, monospace';
-    ctx.fillText(String(Math.max(bestScore(), 0)), 150, 34);
-
-    ctx.fillStyle = '#5c6584';
-    ctx.font = '10px ui-monospace, monospace';
-    ctx.fillText('DISTANCE', 268, 15);
-    ctx.fillStyle = '#d1e6ff';
-    ctx.font = 'bold 15px ui-monospace, monospace';
-    ctx.fillText(Math.floor(S.distance) + ' m', 268, 34);
-
-    bar(400, 'FUEL', S.fuel / FUEL_MAX, S.fuel < 25 ? '#ff4d6d' : '#5cff9d');
-
-    /* Cargo as hearts. Widely spaced on purpose: five discrete states read
-       instantly, where a smooth bar always looks vaguely half full. */
     const cargoFrac = S.cargo / CARGO_MAX;
     const heartCol = cargoFrac > 0.5 ? '#ff5a7a' : cargoFrac > 0.25 ? '#ffb44d' : '#ff4d6d';
-    ctx.textAlign = 'left';
-    ctx.font = '10px ui-monospace, monospace';
-    ctx.fillStyle = '#5c6584';
-    ctx.fillText('CARGO', 570, 15);
+    const hx = PX + PW - 24;
+    hudLabel('Cargo Life', hx, PY + 20, 'right');
     const perHeart = CARGO_MAX / HEARTS;
     for (let i = 0; i < HEARTS; i++) {
       const left = S.cargo - i * perHeart;
       const fill = left >= perHeart * 0.999 ? 1 : left > 0 ? 0.42 : 0.13;
-      heart(580 + i * 30, 28, 8.5, fill, heartCol);
+      heart(hx - (HEARTS - 1 - i) * 24 - 6, PY + 36, 7.5, fill, heartCol);
     }
 
-    // A shield protects the cargo rather than repairing it, so the bar does not
-    // move when you pick one up. Without a chip here that reads as "nothing
-    // happened" — this is what tells you the protection is actually on.
+    /* ---- altitude gauge, right-hand side ---- */
+    const AX = W - 130, AY = 108, AW = 100, AH = 100;
+    panel(AX, AY, AW, AH, 10);
+    hudLabel('Altitude', AX + AW / 2, AY - 10, 'center');
+    drawAltimeter(AX + AW / 2, AY + AH / 2, 39);
+
+    /* ---- transient callouts ---- */
     if (S.shield) {
       ctx.textAlign = 'left';
       ctx.font = 'bold 11px ui-monospace, monospace';
       ctx.fillStyle = '#c9a2ff';
-      ctx.fillText('◍ SHIELD', 570, 44);
+      ctx.fillText('SHIELD', PX + 24, PY + PH + 20);
     }
 
-    ctx.textAlign = 'right';
-    ctx.font = 'bold 17px ui-monospace, monospace';
-    ctx.fillStyle = '#ffd75c';
-    ctx.fillText(String(S.seeds), W - 18, 22);
+    ctx.textAlign = 'left';
     ctx.font = '10px ui-monospace, monospace';
     ctx.fillStyle = '#5c6584';
-    ctx.fillText('SEEDS', W - 18, 34);
+    ctx.fillText('SCORE ' + Math.floor(S.score) + '   BEST ' + Math.max(bestScore(), 0)
+                 + '   SEEDS ' + S.seeds, PX + 150, PY + PH + 20);
 
     if (S.momentum > 1) {
       ctx.textAlign = 'center';
       ctx.font = 'bold 13px ui-monospace, monospace';
       ctx.fillStyle = '#ff2bd6';
-      ctx.fillText(`MOMENTUM ×${S.momentum.toFixed(2)}`, W / 2, H - 18);
+      ctx.fillText('MOMENTUM x' + S.momentum.toFixed(2), W / 2, H - 18);
     }
 
     if (S.grounded && !S.over) {
       ctx.textAlign = 'center';
       ctx.font = 'bold 17px ui-monospace, monospace';
-      ctx.fillStyle = `rgba(255,77,109,${0.6 + Math.sin(S.t * 18) * 0.4})`;
-      ctx.fillText('PULL UP — CARGO GRINDING', W / 2, 76);
+      ctx.fillStyle = 'rgba(255,77,109,' + (0.6 + Math.sin(S.t * 18) * 0.4) + ')';
+      ctx.fillText('PULL UP - CARGO GRINDING', W / 2, PY + PH + 48);
     } else if (S.fuel <= 0) {
       ctx.textAlign = 'center';
       ctx.font = 'bold 15px ui-monospace, monospace';
       ctx.fillStyle = '#ff4d6d';
-      ctx.fillText('FUEL DRY', W / 2, 76);
+      ctx.fillText('FUEL DRY', W / 2, PY + PH + 48);
     }
 
     ctx.restore();
 
     // One heart, drawn from two lobes and a point. `fill` doubles as opacity,
-    // so a spent heart is the same shape ghosted rather than a different one —
+    // so a spent heart is the same shape ghosted rather than a different one --
     // the row keeps its rhythm as you lose them.
     function heart(cx, cy, r, fill, color) {
       ctx.save();
@@ -1294,17 +1478,6 @@
       ctx.closePath();
       ctx.fill();
       ctx.restore();
-    }
-
-    function bar(x, label, frac, color) {
-      ctx.textAlign = 'left';
-      ctx.font = '10px ui-monospace, monospace';
-      ctx.fillStyle = '#5c6584';
-      ctx.fillText(label, x, 15);
-      ctx.fillStyle = 'rgba(42,33,64,.9)';
-      ctx.fillRect(x, 22, 140, 9);
-      ctx.fillStyle = color;
-      ctx.fillRect(x, 22, 140 * Math.max(0, Math.min(1, frac)), 9);
     }
   }
 

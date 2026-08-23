@@ -923,3 +923,13 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+/* Captain sits to the RIGHT of the play area, with the bubble above the
+   portrait — matching the reference layout. Flex order does it, so the
+   markup keeps its reading order for screen readers. */
+.captain { order: 2; border-right: 0; border-left: 1px solid var(--line); }
+.cap-bubble { order: -1; margin-bottom: 12px; }
+.cap-name { order: 0; }
+.cap-role { order: 1; }
+.cap-portrait { order: 2; }
+/* Tail points down at the cat now that the bubble sits above her. */
+.cap-bubble::before { top: auto; bottom: -6px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
