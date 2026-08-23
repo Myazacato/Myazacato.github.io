@@ -72,6 +72,17 @@
   // clean is worth more than flying far.
   const SEED_POINTS = 25;
 
+  /* ------------------------------- shield --------------------------------
+     A bubble you can pick up that wraps around her. It absorbs exactly one
+     mistake: touch a hazard and it pops instead of the cargo taking the hit,
+     or touch the deck and it throws you back up instead of grinding you down.
+
+     One-shot on purpose. A shield that survived several hits would flatten the
+     run, because what ends a run is a chain of small mistakes rather than any
+     single one. */
+  const SHIELD_SIZE   = 74;    // drawn diameter, wide enough to enclose her
+  const SHIELD_BOUNCE = -880;  // upward kick when the bubble hits the deck
+
   /* ------------------------------- flame ---------------------------------
      The jetpack burns green and hard while you are climbing, and idles yellow
      and short when you are not — so the exhaust tells you what the throttle is
@@ -147,7 +158,8 @@
     // 0 stands her up, 90 lays her flat.
     plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12, rotate: 62 },
     coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
-    fuel:  { src: 'assets/game/fuel.png', w: 32, h: 32 },
+    fuel:  { src: 'assets/game/fuel.png', w: 64, h: 64 },
+    ball:  { src: 'assets/game/ball.png', w: 44, h: 44 },
   };
 
   // Each entry gains .img (an Image) and .ready (true once it decodes).
@@ -262,7 +274,7 @@
       { dx:   0, y: 452, t: 'tramp' }, { dx:  60, y: 330, t: 'coin' },
       { dx: 120, y: 260, t: 'coin' },  { dx: 260, y: 452, t: 'tramp' },
       { dx: 320, y: 330, t: 'coin' },  { dx: 380, y: 260, t: 'coin' },
-      { dx: 520, y: 452, t: 'tramp' },
+      { dx: 520, y: 452, t: 'tramp' }, { dx: 300, y: 150, t: 'ball' },
       // At the apex of each bounce, so a good hop pays for itself.
       { dx: 170, y: 205, t: 'fuel' }, { dx: 430, y: 205, t: 'fuel' },
       { dx: 580, y: 320, t: 'fuel' }, { dx:  60, y: 400, t: 'fuel' },
@@ -290,7 +302,7 @@
       { dx:   0, y: 120, t: 'zapper_v' }, { dx: 240, y: 400, t: 'zapper_v' },
       { dx: 480, y: 120, t: 'zapper_v' },
       { dx: 120, y: 300, t: 'coin' }, { dx: 360, y: 240, t: 'coin' },
-      { dx: 600, y: 300, t: 'coin' },
+      { dx: 600, y: 300, t: 'coin' }, { dx: 240, y: 170, t: 'ball' },
       // In the gaps between pillars, where you have to weave anyway.
       { dx: 120, y: 380, t: 'fuel' }, { dx: 360, y: 160, t: 'fuel' },
       { dx: 600, y: 180, t: 'fuel' }, { dx:  60, y: 300, t: 'fuel' },
@@ -312,7 +324,7 @@
       // The good money sits behind the beams. That is the bait.
       { dx: 150, y: 130, t: 'coin' }, { dx: 230, y: 120, t: 'coin' },
       { dx: 310, y: 115, t: 'coin' }, { dx: 390, y: 120, t: 'coin' },
-      { dx: 470, y: 130, t: 'coin' },
+      { dx: 470, y: 130, t: 'coin' }, { dx: 310, y: 175, t: 'ball' },
       // Fuel on the safe road below, so taking the greedy line costs you range.
       { dx: 300, y: 430, t: 'fuel' }, { dx:  40, y: 430, t: 'fuel' },
       { dx: 560, y: 430, t: 'fuel' }, { dx: 180, y: 430, t: 'fuel' },
@@ -362,6 +374,16 @@
       "Still flying. Genuinely surprised.",
       "This is the furthest anyone's got today.",
       "The boss just asked who's flying. I said nobody.",
+    ],
+    shield: [
+      "Bubble's up. That buys you exactly one mistake.",
+      "Shield on. Spend it wisely, or don't, I'm not your mother.",
+      "Nice, a bubble. Try to make it last longer than the last one.",
+    ],
+    shieldPop: [
+      "Bubble's gone. You're on your own again.",
+      "That's what it was for. No more freebies.",
+      "Popped. Back to being fragile.",
     ],
     dead: [
       "Well. That happened.",
@@ -455,6 +477,7 @@
       shake: 0,
       flash: 0,
       thrusting: false,
+      shield: false,
       sparkDebt: 0,
       nextIdleLine: 6,
       nextMilestone: 800,
@@ -518,7 +541,9 @@
   function spawnEntry(x, y, t) {
     switch (t) {
       case 'coin':     S.ents.push({ t, x, y, r: 11, spin: Math.random() * 6.28, dead: false }); break;
-      case 'fuel':     S.ents.push({ t, x, y, r: 15, dead: false }); break;
+      // r scales with the icon so what you see stays what you can grab.
+      case 'fuel':     S.ents.push({ t, x, y, r: 30, dead: false }); break;
+      case 'ball':     S.ents.push({ t, x, y, r: 24, dead: false }); break;
       case 'tramp':    S.ents.push({ t, x, y, w: 76, h: 15, dead: false }); break;
       case 'zapper_h': S.ents.push({ t, x, y, w: 168, h: 13, dead: false }); break;
       case 'zapper_v': S.ents.push({ t, x, y, w: 13, h: 168, dead: false }); break;
@@ -543,6 +568,24 @@
       });
     }
     if (S.cargo <= 0) finish();
+  }
+
+  // The bubble bursting. Deliberately loud — it has just saved the run, and
+  // the player needs to register that the protection is gone.
+  function popShield() {
+    S.shield = false;
+    S.shake = Math.min(14, S.shake + 8);
+    for (let i = 0; i < 22; i++) {
+      const a = (i / 22) * 6.2832;
+      S.particles.push({
+        x: PLANE_X + Math.cos(a) * 26,
+        y: S.planeY + Math.sin(a) * 26,
+        vx: Math.cos(a) * 230 - S.speed * 0.15,
+        vy: Math.sin(a) * 230,
+        life: 0.34 + Math.random() * 0.2, max: 0.54, c: '#c9a2ff',
+      });
+    }
+    say('shieldPop', { force: true });
   }
 
   function update(dt) {
@@ -571,13 +614,20 @@
     if (S.planeY < PLAY_TOP) { S.planeY = PLAY_TOP; S.vel = Math.max(S.vel, 120); }
     if (S.planeY > FLOOR) {
       S.planeY = FLOOR;
-      if (S.vel > CARGO_HIGH_G_THRESH) damageCargo(CARGO_BOUNCE_DAMAGE);
-      S.vel = -Math.abs(S.vel) * 0.28;
+      if (S.shield) {
+        // The bubble takes the deck for you and throws you clear.
+        S.vel = SHIELD_BOUNCE;
+        popShield();
+      } else {
+        if (S.vel > CARGO_HIGH_G_THRESH) damageCargo(CARGO_BOUNCE_DAMAGE);
+        S.vel = -Math.abs(S.vel) * 0.28;
+      }
     }
     if (S.over) return;
 
     /* --- the deck grinds the cargo down for as long as you sit on it --- */
-    S.grounded = S.planeY >= FLOOR - GROUND_BAND;
+    // A shielded touch bounces clear before the grind can start.
+    S.grounded = !S.shield && S.planeY >= FLOOR - GROUND_BAND;
     if (S.grounded) {
       S.groundedFor += dt;
       S.cargo = Math.max(0, S.cargo - CARGO_GROUND_DRAIN * dt);
@@ -655,6 +705,13 @@
           S.score += SEED_POINTS;
           burst(e.x, e.y, '#ffd75c', 6);
         }
+      } else if (e.t === 'ball') {
+        if (Math.hypot(e.x - px, e.y - S.planeY) < e.r + pr) {
+          e.dead = true;
+          S.shield = true;
+          burst(e.x, e.y, '#c9a2ff', 16);
+          say('shield', { force: true });
+        }
       } else if (e.t === 'fuel') {
         if (Math.hypot(e.x - px, e.y - S.planeY) < e.r + pr) {
           e.dead = true;
@@ -669,8 +726,12 @@
       } else if (e.t === 'zapper_h' || e.t === 'zapper_v') {
         if (!e.hitCooldown && hitsRect(px, S.planeY, pr, e)) {
           e.hitCooldown = 0.6;
-          damageCargo(CARGO_HAZARD_DAMAGE);
-          if (S.over) return;
+          if (S.shield) {
+            popShield();          // absorbs the hit; the cargo is untouched
+          } else {
+            damageCargo(CARGO_HAZARD_DAMAGE);
+            if (S.over) return;
+          }
         }
         if (e.hitCooldown) e.hitCooldown = Math.max(0, e.hitCooldown - dt);
       }
@@ -736,6 +797,7 @@
     for (const e of S.ents) drawEntity(e);
     drawParticles();
     drawPlane();
+    drawShield();   // over her, so it reads as a bubble she is sitting inside
 
     if (S.flash > 0) {
       ctx.fillStyle = `rgba(255,77,109,${S.flash * 0.3})`;
@@ -805,6 +867,17 @@
           ctx.font = 'bold 13px ui-monospace, monospace';
           ctx.textAlign = 'center';
           ctx.fillText('F', e.x, e.y + 5);
+        });
+        break;
+      }
+      case 'ball': {
+        // Bobs gently so it reads as a pickup rather than scenery.
+        const bob = Math.sin(S.t * 3 + e.x * 0.01) * 4;
+        glow('#c9a2ff', 16, () => {
+          if (sprite('ball', e.x, e.y + bob)) return;
+          ctx.strokeStyle = '#c9a2ff';
+          ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(e.x, e.y + bob, e.r, 0, 6.2832); ctx.stroke();
         });
         break;
       }
@@ -925,6 +998,27 @@
       });
     }
 
+    ctx.restore();
+  }
+
+  // The bubble around her while the shield is up. Drawn semi-transparent and
+  // unrotated: a sphere has no orientation, and letting it bank with her would
+  // just make the highlight wobble for no reason.
+  function drawShield() {
+    if (!S.shield || S.over) return;
+    const pulse = 1 + Math.sin(S.t * 6) * 0.035;
+    const d = SHIELD_SIZE * pulse;
+    ctx.save();
+    ctx.globalAlpha = 0.55 + Math.sin(S.t * 6) * 0.08;
+    ctx.shadowColor = '#c9a2ff';
+    ctx.shadowBlur = 20;
+    if (SPRITES.ball.ready) {
+      ctx.drawImage(SPRITES.ball.img, PLANE_X - d / 2, S.planeY - d / 2, d, d);
+    } else {
+      ctx.strokeStyle = '#c9a2ff';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(PLANE_X, S.planeY, d / 2, 0, 6.2832); ctx.stroke();
+    }
     ctx.restore();
   }
 
