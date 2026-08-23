@@ -147,7 +147,7 @@
     // 0 stands her up, 90 lays her flat.
     plane: { src: 'assets/game/dog-run.png', w: 48, h: 48, frames: 5, fps: 12, rotate: 62 },
     coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
-    fuel:  { src: null, w: 30, h: 36 },   // e.g. 'assets/game/fuel.png'
+    fuel:  { src: 'assets/game/fuel.png', w: 32, h: 32 },
   };
 
   // Each entry gains .img (an Image) and .ready (true once it decodes).
@@ -790,7 +790,10 @@
         break;
       }
       case 'fuel': {
-        glow('#5cff9d', 16, () => {
+        // Pickups keep a soft halo even as real artwork, unlike the character.
+        // She is always in the same spot on screen and never needs help being
+        // found; canisters are small, numerous, and must be spotted at speed.
+        glow('#5cff9d', 12, () => {
           if (sprite('fuel', e.x, e.y)) return;
           ctx.strokeStyle = '#5cff9d';
           ctx.lineWidth = 2.5;
