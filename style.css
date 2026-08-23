@@ -167,14 +167,27 @@ main, .topbar, footer { position: relative; z-index: 1; }
    Traced from start-button.svg: two diagonally opposite corners chamfered,
    top-left and bottom-right, everything else square.
 
-   The border is a gradient, which a plain `border` cannot do, so the two
-   layers are painted as backgrounds instead — fill clipped to the padding
-   box, gradient to the border box — and clip-path chamfers both at once. A
-   pseudo-element would have needed its own stacking context to sit under the
-   label; this way there is nothing to stack. */
+   The edge is a gradient, which a plain `border` cannot hold. The obvious
+   trick — fill clipped to the padding box over a gradient clipped to the
+   border box — LOOKS right but breaks at the chamfers: that ring only exists
+   as an inset from the rectangular border box, so a diagonal clip cuts
+   straight through the fill and the edge vanishes exactly at the corner.
+
+   So the ring is built from two chamfers instead. The element carries the
+   gradient and the outer shape; ::before carries the fill and a second shape
+   inset by the border width, giving a ring of even thickness the whole way
+   round, diagonals included.
+
+   The inner chamfer is not simply `--cut` minus the border. Offsetting a 45°
+   cut inward by d moves the diagonal by d√2 while the box origin moves 2d, so
+   the leg shortens by d(2 − √2) ≈ 0.586d. Without that the corner reads
+   thicker than the straight edges. */
 .btn-cut {
   --cut: 9px;
+  --bw: 2px;
   position: relative;
+  z-index: 0;                 /* stacking context, so ::before sits above the
+                                 gradient but still behind the label */
   display: inline-block;
   font-family: var(--mono);
   font-size: 13.5px;
@@ -184,14 +197,9 @@ main, .topbar, footer { position: relative; z-index: 1; }
   padding: 15px 30px;
   cursor: pointer;
   color: #dff4ff;
-  border: 2px solid transparent;
+  border: 0;
   border-radius: 0;
-  /* The fill has to be near-opaque. It sits on top of the gradient layer, so a
-     translucent fill lets the border colour bleed across the whole face and
-     the button reads as a bright slab instead of a dark key with a lit edge. */
-  background:
-    linear-gradient(180deg, rgba(11,14,32,.93), rgba(8,10,24,.90)) padding-box,
-    linear-gradient(105deg, #00dbea 0%, #2b7bff 55%, #6a5cff 100%) border-box;
+  background: linear-gradient(105deg, #00dbea 0%, #2b7bff 55%, #6a5cff 100%);
   clip-path: polygon(
     var(--cut) 0, 100% 0,
     100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
@@ -199,9 +207,22 @@ main, .topbar, footer { position: relative; z-index: 1; }
   );
   transition: color .18s, filter .18s, transform .18s;
 }
+.btn-cut::before {
+  content: '';
+  position: absolute;
+  inset: var(--bw);
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(11,14,32,.94), rgba(8,10,24,.92));
+  --icut: calc(var(--cut) - var(--bw) * 0.586);
+  clip-path: polygon(
+    var(--icut) 0, 100% 0,
+    100% calc(100% - var(--icut)), calc(100% - var(--icut)) 100%,
+    0 100%, 0 var(--icut)
+  );
+}
 .btn-cut:hover {
   color: #fff;
-  filter: brightness(1.35) saturate(1.1);
+  filter: brightness(1.3) saturate(1.1);
   transform: translateY(-2px);
 }
 .btn-cut:active { transform: translateY(0); }
