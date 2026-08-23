@@ -174,14 +174,16 @@
     s.img = img;
   });
 
-  // Which cell of the sheet to show right now. Driven by wall clock, so the
-  // animation holds its stated fps whatever the render rate is doing.
-  // `s.animating === false` pins it to the first frame — used to keep the
-  // character still except while her jetpack is actually firing.
+  // Which cell of the sheet to show right now. By default it cycles on the
+  // wall clock, so the animation holds its stated fps whatever the render
+  // rate is doing. Setting `s.frameIndex` to a number pins it to that frame
+  // instead — which is how the character switches between two poses rather
+  // than playing a run cycle.
   function frameRect(s) {
     if (s.frames <= 1) return null;
-    if (s.animating === false) return { sx: 0, sy: 0 };
-    const i = Math.floor(performance.now() / 1000 * s.fps) % s.frames;
+    const i = typeof s.frameIndex === "number"
+      ? Math.max(0, Math.min(s.frames - 1, s.frameIndex))
+      : Math.floor(performance.now() / 1000 * s.fps) % s.frames;
     return { sx: (i % s.cols) * s.fw, sy: Math.floor(i / s.cols) * s.fh };
   }
 
@@ -458,7 +460,7 @@
       nextMilestone: 800,
       warnedFuel: false,
     };
-    SPRITES.plane.animating = false;
+    SPRITES.plane.frameIndex = 0;   // resting pose
   }
 
   /* ------------------------------ captain -------------------------------- */
@@ -614,9 +616,8 @@
        and stream away behind her. The nozzle has to be rotated into world
        coordinates by hand, since the particles are not inside her transform. */
     S.thrusting = canThrust;
-    // Legs run only while the jetpack is firing. Let go and she settles onto
-    // a single frame, so she is never running on the spot.
-    SPRITES.plane.animating = canThrust;
+    // Two poses, no cycle: frame 1 at rest, frame 2 while the jetpack burns.
+    SPRITES.plane.frameIndex = canThrust ? 1 : 0;
 
     if (S.fuel > 0) {
       const f = canThrust ? FLAME.thrust : FLAME.hover;
