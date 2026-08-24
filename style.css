@@ -324,7 +324,16 @@ main, .topbar, footer { position: relative; z-index: 1; }
 }
 
 /* Captain panel sits beside the canvas rather than over it, so the play area
-   keeps its full 960x540 and nothing the game draws has to move. */
+   keeps its full 960x540 and nothing the game draws has to move.
+
+   Everything below is ONE consolidated pass. An earlier version of this panel
+   had two separate .cap-portrait rule blocks fighting over sizing — one
+   pixel-based (matching the sprite-step keyframe), one percentage-based
+   (added later to match a reference layout) — and the mismatch showed up as
+   two frames blended together mid-animation, i.e. a "doubled" cat whenever
+   she spoke. There is now exactly one rule per property, and the layout order
+   (gauge, bubble, portrait) is the literal DOM order, not a flex re-order, so
+   there is nothing left to fight. */
 .game-stage { display: flex; align-items: stretch; }
 
 .captain {
@@ -333,11 +342,10 @@ main, .topbar, footer { position: relative; z-index: 1; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  justify-content: flex-end;
+  gap: 14px;
   padding: 16px 14px;
-  background: var(--panel);
-  border-right: 1px solid var(--line);
-  line-height: 1.5;
+  background: transparent;         /* no panel box behind her — just her art */
   overflow: hidden;
   /* Width rather than display, so she slides in when the run starts instead
      of the canvas snapping to a new size. */
@@ -350,45 +358,75 @@ main, .topbar, footer { position: relative; z-index: 1; }
   opacity: 0;
   padding-left: 0;
   padding-right: 0;
-  border-right-width: 0;
 }
 
-/* Captain Meow is a three-frame 192x64 strip. Rather than a canvas or a
-   script, the idle is a CSS step animation: the background is sized to three
-   portrait-widths and slid left one whole width per step, so each step lands
-   exactly on a frame boundary. Percentages would not — with steps(3), 0%-100%
-   lands on thirds of the *travel*, not of the image. */
+/* ---- altitude gauge, drawn by drawCapAltimeter() in demo.js ---- */
+.cap-altimeter {
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+
+/* ---- speech bubble ---- */
+.cap-bubble {
+  position: relative;
+  width: 100%;
+  background: rgba(9,12,26,.72);
+  border: 1.4px solid rgba(0,240,255,.5);
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(0,240,255,.18);
+  padding: 12px 13px;
+}
+/* Tail points down at the portrait below. */
+.cap-bubble::before {
+  content: '';
+  position: absolute;
+  right: 20px; bottom: -7px;
+  width: 11px; height: 11px;
+  background: rgba(9,12,26,.95);
+  border-right: 1.4px solid rgba(0,240,255,.5);
+  border-bottom: 1.4px solid rgba(0,240,255,.5);
+  transform: rotate(45deg);
+}
+.cap-bubble p {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--cyan);
+}
+.captain[data-mood="alarm"] .cap-bubble { border-color: rgba(255,77,109,.55); }
+.captain[data-mood="alarm"] .cap-bubble p { color: #ff8fa3; }
+.captain[data-mood="good"] .cap-bubble { border-color: rgba(92,255,157,.5); }
+.captain[data-mood="good"] .cap-bubble p { color: #9dffc6; }
+
+/* ---- portrait ----
+   Captain Meow is a three-frame 192x64 strip. The idle is a CSS step
+   animation: the background is sized to three portrait-widths and slid left
+   one whole width per step, so each step lands exactly on a frame boundary.
+   Percentages would not — with steps(3), 0%-100% lands on thirds of the
+   *travel*, not of the image. Every size below derives from the single --cap
+   variable, on purpose: that is what keeps the box and the keyframe in sync. */
 .cap-portrait {
-  --cap: 78px;
+  --cap: 150px;
   width: var(--cap);
   height: var(--cap);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background-color: var(--bg-2);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 10px;
   background-image: url('assets/game/captain-meow.png');
   background-repeat: no-repeat;
   background-size: calc(var(--cap) * 3) var(--cap);
   background-position-x: 0;
   image-rendering: pixelated;          /* keep the pixel art crisp when scaled */
-  transition: border-color .3s, box-shadow .3s;
+  transition: box-shadow .3s;
   /* No idle loop: she holds still until she has something to say. A cat
      animating forever in the corner pulls the eye away from the game. */
 }
 @keyframes capIdle {
   to { background-position-x: calc(var(--cap) * -3); }
 }
-
-/* Mood is set from JS on the .captain wrapper. The artwork cannot be
-   recoloured, so the mood reads through the frame around it instead. */
-.captain[data-mood="alarm"] .cap-portrait {
-  border-color: rgba(255,77,109,.75);
-  box-shadow: 0 0 18px rgba(255,77,109,.35);
-}
-.captain[data-mood="good"] .cap-portrait {
-  border-color: rgba(92,255,157,.7);
-  box-shadow: 0 0 18px rgba(92,255,157,.3);
-}
-
 /* Speaking is the only thing that animates her: three cycles of the strip
    while the new line lands, plus one pulse of the box, then back to still.
    JS re-adds .talking on every line, which restarts both. */
@@ -397,57 +435,14 @@ main, .topbar, footer { position: relative; z-index: 1; }
 }
 @keyframes capTalk {
   0%   { transform: scale(1);    }
-  40%  { transform: scale(1.09); }
+  40%  { transform: scale(1.06); }
   100% { transform: scale(1);    }
 }
 
-.cap-name {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .14em;
-  color: var(--cyan);
-  margin: 10px 0 0;
-}
-.cap-role {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: .2em;
-  color: var(--text-faint);
-  margin: 0 0 10px;
-}
-
-.cap-bubble {
-  position: relative;
-  width: 100%;
-  flex: 1;
-  min-height: 96px;
-  background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 11px 12px;
-}
-.cap-bubble::before {
-  content: '';
-  position: absolute;
-  top: -6px; left: 50%;
-  width: 10px; height: 10px;
-  margin-left: -5px;
-  background: var(--bg-2);
-  border-left: 1px solid var(--line);
-  border-top: 1px solid var(--line);
-  transform: rotate(45deg);
-}
-.cap-bubble p {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  line-height: 1.6;
-  color: var(--text-dim);
-}
-.captain[data-mood="alarm"] .cap-bubble { border-color: rgba(255,77,109,.55); }
-.captain[data-mood="alarm"] .cap-bubble p { color: #ff8fa3; }
-.captain[data-mood="good"] .cap-bubble { border-color: rgba(92,255,157,.5); }
-.captain[data-mood="good"] .cap-bubble p { color: #9dffc6; }
+/* Mood is set from JS on the .captain wrapper. The artwork cannot be
+   recoloured, so the mood reads through a glow around the portrait instead. */
+.captain[data-mood="alarm"] .cap-portrait { box-shadow: 0 0 18px rgba(255,77,109,.4); }
+.captain[data-mood="good"]  .cap-portrait { box-shadow: 0 0 18px rgba(92,255,157,.35); }
 
 .canvas-wrap { position: relative; line-height: 0; flex: 1; min-width: 0; }
 
@@ -892,21 +887,20 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
     flex: 0 0 auto;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     text-align: left;
-    border-right: 0;
     border-bottom: 1px solid var(--line);
-    padding: 12px 14px;
+    padding: 10px 14px;
+    /* Stacked layout: a width transition makes no sense here, so just drop her. */
+    width: auto;
+    transition: none;
   }
+  .game-stage[data-state="intro"] .captain { display: none; }
   /* Only the one variable changes — the strip maths follows it. */
   .cap-portrait { --cap: 52px; flex: 0 0 52px; }
-  /* Stacked layout: a width transition makes no sense here, so just drop her. */
-  .captain { width: auto; transition: none; }
-  .game-stage[data-state="intro"] .captain { display: none; }
-  .cap-name { margin: 0; }
-  .cap-role { display: none; }
-  .cap-bubble { min-height: 0; flex: 1; padding: 8px 11px; }
-  .cap-bubble::before { top: 50%; left: -6px; margin: -5px 0 0; }
+  .cap-altimeter { max-width: 52px; flex: 0 0 52px; }
+  .cap-bubble { flex: 1; padding: 8px 11px; }
+  .cap-bubble::before { right: auto; left: -6px; top: 50%; bottom: auto; margin-top: -5px; }
 }
 
 @media (max-width: 700px) {
@@ -922,73 +916,4 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
-}
-/* Captain sits to the RIGHT of the play area, with the bubble above the
-   portrait — matching the reference layout. Flex order does it, so the
-   markup keeps its reading order for screen readers. */
-.captain { order: 2; border-right: 0; border-left: 1px solid var(--line); }
-.cap-bubble { order: -1; margin-bottom: 12px; }
-.cap-name { order: 0; }
-.cap-role { order: 1; }
-.cap-portrait { order: 2; }
-/* Tail points down at the cat now that the bubble sits above her. */
-.cap-bubble::before { top: auto; bottom: -6px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-
-/* ---- copilot panel, matching the reference ----
-   An outer cyan-edged box holding a speech bubble above a framed portrait.
-   The name/role labels are dropped: the reference has neither, and the cat
-   plus her line already say who is talking. */
-.captain {
-  order: 2;
-  border: 0;
-  background: transparent;
-  padding: 14px 12px;
-  justify-content: flex-end;
-  gap: 0;
-}
-.cap-name, .cap-role { display: none; }
-
-.cap-bubble {
-  order: -1;
-  flex: 0 0 auto;
-  min-height: 0;
-  width: 100%;
-  margin-bottom: 14px;
-  background: rgba(9,12,26,.72);
-  border: 1.4px solid rgba(0,240,255,.5);
-  border-radius: 10px;
-  box-shadow: 0 0 12px rgba(0,240,255,.18);
-  padding: 12px 13px;
-}
-.cap-bubble p { color: var(--cyan); font-size: 11.5px; }
-/* Tail hangs off the bottom-right, pointing down at her. */
-.cap-bubble::before {
-  top: auto; left: auto;
-  right: 20px; bottom: -7px;
-  margin: 0;
-  width: 11px; height: 11px;
-  background: rgba(9,12,26,.95);
-  border: 0;
-  border-right: 1.4px solid rgba(0,240,255,.5);
-  border-bottom: 1.4px solid rgba(0,240,255,.5);
-  transform: rotate(45deg);
-}
-
-.cap-portrait {
-  order: 2;
-  --cap: 96px;
-  width: 100%;
-  height: 104px;
-  background-color: #0b1430;
-  background-position: center;
-  background-size: contain;
-  border: 1.4px solid rgba(0,240,255,.5);
-  border-radius: 10px;
-  box-shadow: 0 0 12px rgba(0,240,255,.18);
-}
-/* A single frame at rest; the strip only steps while she is speaking, and the
-   sheet is three frames wide so `contain` has to be overridden per-frame. */
-.cap-portrait { background-size: 300% auto; }
-@media (max-width: 820px) {
-  .cap-portrait { height: 64px; }
 }

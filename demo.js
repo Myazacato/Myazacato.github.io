@@ -520,6 +520,10 @@
 
   const capBubble = document.getElementById('cap-line');
   const capPortrait = document.getElementById('cap-portrait');
+  // The altitude gauge lives in the sidebar, in its own small canvas, rather
+  // than on the main 960x540 canvas — see drawCapAltimeter().
+  const capAltCanvas = document.getElementById('cap-altimeter');
+  const capAltCtx = capAltCanvas ? capAltCanvas.getContext('2d') : null;
   // The mood styling hangs off .captain, not off the bubble — the CSS selectors
   // are `.captain[data-mood=...]`, so setting it anywhere else silently does
   // nothing.
@@ -993,6 +997,7 @@
 
     ctx.restore();
     drawHUD();
+    drawCapAltimeter();   // separate canvas, so a separate call outside ctx.save/restore
   }
 
   function drawFloor() {
@@ -1307,76 +1312,93 @@
      The sweep is deliberately non-linear. Near the deck is where altitude
      actually matters, and a linear dial would leave the needle barely
      twitching exactly there, so the first stretch of climb takes most of the
-     face. */
-  function drawAltimeter(cx, cy, r) {
+     face.
+
+     Lives in its own small canvas in the sidebar rather than on the main
+     960x540 canvas, so it never has to duck behind the HUD strip or the
+     camera. `paintAltimeter` takes the drawing context explicitly (as `g`,
+     not `ctx` — shadowing the outer `ctx` would make every call inside
+     silently draw to the wrong canvas) so the same routine can be reused if
+     the gauge ever needs to render somewhere else again. */
+  function paintAltimeter(g, cx, cy, r) {
     const altitude = Math.max(0, FLOOR - S.planeY);
     const norm = Math.min(1, Math.pow(altitude / SKY_RANGE, 0.62));
 
     const START = Math.PI * 0.75;      // bottom-left
     const SWEEP = Math.PI * 1.5;       // three-quarters of the face, clockwise
 
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    g.save();
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, 6.2832);
-    ctx.fillStyle = 'rgba(6,14,20,.9)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,240,255,.45)';
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
+    g.beginPath();
+    g.arc(cx, cy, r, 0, 6.2832);
+    g.fillStyle = 'rgba(6,14,20,.9)';
+    g.fill();
+    g.strokeStyle = 'rgba(0,240,255,.45)';
+    g.lineWidth = 1.2;
+    g.stroke();
 
     // Long tick every fifth, short between, as the real dial reads.
     for (let i = 0; i <= 40; i++) {
       const a = START + (i / 40) * SWEEP;
       const major = i % 5 === 0;
       const inner = r - (major ? 10 : 5);
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
-      ctx.lineTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2));
-      ctx.strokeStyle = major ? 'rgba(0,240,255,.85)' : 'rgba(0,240,255,.35)';
-      ctx.lineWidth = major ? 1.6 : 1;
-      ctx.stroke();
+      g.beginPath();
+      g.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+      g.lineTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2));
+      g.strokeStyle = major ? 'rgba(0,240,255,.85)' : 'rgba(0,240,255,.35)';
+      g.lineWidth = major ? 1.6 : 1;
+      g.stroke();
     }
 
-    ctx.font = '8px ui-monospace, monospace';
-    ctx.fillStyle = 'rgba(180,230,245,.8)';
+    g.font = '8px ui-monospace, monospace';
+    g.fillStyle = 'rgba(180,230,245,.8)';
     const marks = [0, 25, 50, 75, 100];
     for (let i = 0; i < marks.length; i++) {
       const a = START + (i / 4) * SWEEP;
-      ctx.fillText(String(marks[i]), cx + Math.cos(a) * (r - 19), cy + Math.sin(a) * (r - 19));
+      g.fillText(String(marks[i]), cx + Math.cos(a) * (r - 19), cy + Math.sin(a) * (r - 19));
     }
 
     // The amber danger arc down at deck height, straight off the real gauge.
-    ctx.beginPath();
-    ctx.arc(cx, cy, r - 6, START, START + SWEEP * 0.12);
-    ctx.strokeStyle = 'rgba(255,180,60,.75)';
-    ctx.lineWidth = 5;
-    ctx.stroke();
+    g.beginPath();
+    g.arc(cx, cy, r - 6, START, START + SWEEP * 0.12);
+    g.strokeStyle = 'rgba(255,180,60,.75)';
+    g.lineWidth = 5;
+    g.stroke();
 
     const a = START + norm * SWEEP;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(a);
-    ctx.shadowColor = '#ffb43c';
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = '#ffb43c';
-    ctx.beginPath();
-    ctx.moveTo(r - 9, 0);
-    ctx.lineTo(-5, -3.4);
-    ctx.lineTo(-5, 3.4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    g.save();
+    g.translate(cx, cy);
+    g.rotate(a);
+    g.shadowColor = '#ffb43c';
+    g.shadowBlur = 8;
+    g.fillStyle = '#ffb43c';
+    g.beginPath();
+    g.moveTo(r - 9, 0);
+    g.lineTo(-5, -3.4);
+    g.lineTo(-5, 3.4);
+    g.closePath();
+    g.fill();
+    g.restore();
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, 3.2, 0, 6.2832);
-    ctx.fillStyle = '#cfe9f5';
-    ctx.fill();
+    g.beginPath();
+    g.arc(cx, cy, 3.2, 0, 6.2832);
+    g.fillStyle = '#cfe9f5';
+    g.fill();
 
-    ctx.textBaseline = 'alphabetic';
-    ctx.restore();
+    g.textBaseline = 'alphabetic';
+    g.restore();
+  }
+
+  // Repaints the sidebar gauge. Called once a frame from draw() regardless of
+  // whether the captain panel is currently visible — cheap, and avoids the
+  // gauge showing a stale needle position on the frame she slides back in.
+  function drawCapAltimeter() {
+    if (!capAltCtx) return;
+    const w = capAltCanvas.width, h = capAltCanvas.height;
+    capAltCtx.clearRect(0, 0, w, h);
+    paintAltimeter(capAltCtx, w / 2, h / 2, Math.min(w, h) / 2 - 6);
   }
 
 
@@ -1444,11 +1466,8 @@
       heart(hx - (HEARTS - 1 - i) * 24 - 6, PY + 36, 7.5, fill, heartCol);
     }
 
-    /* ---- altitude gauge, right-hand side ---- */
-    const AX = W - 130, AY = 108, AW = 100, AH = 100;
-    panel(AX, AY, AW, AH, 10);
-    hudLabel('Altitude', AX + AW / 2, AY - 10, 'center');
-    drawAltimeter(AX + AW / 2, AY + AH / 2, 39);
+    /* Altitude gauge moved to its own canvas in the sidebar (see
+       drawCapAltimeter) — nothing to draw for it here. */
 
     /* ---- transient callouts ---- */
     if (S.shield) {

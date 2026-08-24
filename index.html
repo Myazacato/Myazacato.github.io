@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -73,16 +73,18 @@
 
       <div class="game-stage" data-state="intro">
 
-        <!-- Captain Meow: dispatch, commentary, and general lack of confidence -->
+        <!-- Captain Meow: dispatch, commentary, and general lack of confidence.
+             Top to bottom: altitude gauge, her speech bubble, her portrait --
+             plain DOM order, so no flex re-ordering is needed to lay it out. -->
         <aside class="captain" data-mood="calm">
-          <!-- Three-frame idle, stepped across the box in CSS. See .cap-portrait. -->
-          <div class="cap-portrait" id="cap-portrait" role="img"
-               aria-label="Captain Meow, a red cat in uniform"></div>
-          <p class="cap-name">CAPTAIN MEOW</p>
-          <p class="cap-role">DISPATCH</p>
+          <canvas class="cap-altimeter" id="cap-altimeter" width="150" height="150"
+                  aria-hidden="true"></canvas>
           <div class="cap-bubble">
             <p id="cap-line" role="status" aria-live="polite">Standing by.</p>
           </div>
+          <!-- Three-frame idle, stepped in CSS. Only steps while she is speaking. -->
+          <div class="cap-portrait" id="cap-portrait" role="img"
+               aria-label="Captain Meow, a red cat in uniform"></div>
         </aside>
 
         <div class="canvas-wrap">
@@ -308,7 +310,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=29"></script>
-<script src="demo.js?v=29"></script>
+<script src="site.js?v=30"></script>
+<script src="demo.js?v=30"></script>
 </body>
 </html>
