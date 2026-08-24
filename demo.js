@@ -56,6 +56,12 @@
   // Overall pace. Scales the whole curve, so the lane opens faster and keeps
   // its shape. Also means chunks — and the canisters in them — arrive sooner.
   const SPEED_MULT        = 1.1;
+  // On top of the continuous ramp above, speed steps up permanently every
+  // SPEED_MILESTONE_M of distance flown — a distinct kick the player can feel
+  // land, rather than only the smooth creep. Linear, not compounding: at
+  // milestone 5 (5000m) the multiplier is a flat 1.6x, not runaway growth.
+  const SPEED_MILESTONE_M    = 1000;
+  const SPEED_MILESTONE_STEP = 0.12;
 
   // Cargo is the health bar now — at zero the run is over. Halved from the
   // original 100, so everything that damages you hurts twice as much.
@@ -79,6 +85,10 @@
   const FUEL_DRAIN_IDLE   = 4.2 * FUEL_ECONOMY;
   const FUEL_DRAIN_THRUST = 11.0 * FUEL_ECONOMY;
   const FUEL_PICKUP_GAIN  = 34;
+  // A guaranteed cadence, not a chance roll — the sky/chunk spawners are
+  // probabilistic and can go quiet, which is fine for hazards but not for the
+  // one thing that keeps the run alive.
+  const FUEL_SPAWN_EVERY  = 5;
 
 
   /* ------------------------------- shield --------------------------------
@@ -97,14 +107,16 @@
   const PAD_ANIM = 0.1;      // snappy: the bounce should read as a kick
 
   /* -------------------------------- fan ----------------------------------
-     A floor-mounted updraught. Stand in the column and it lifts you — gently,
-     and only up to a ceiling of its own, so it is a free ride rather than a
-     free win. Costs no fuel, which is the point: it is the poor pilot's
-     jetpack, and the reason to hug the deck despite the deck being lethal. */
-  const FAN_W       = 92;    // width of the column
-  const FAN_REACH   = 300;   // how far up the draught still pulls
-  const FAN_LIFT    = -1750; // acceleration while inside it
-  const FAN_VEL_CAP = -300;  // it will not push you faster than this
+     A small updraught. Fly into the column and it bounces you — a clean
+     upward kick, on a short per-entity cooldown so lingering in the column
+     gives a quick series of bounces rather than one push, then nothing.
+     Costs no fuel, which is the point: it is the poor pilot's jetpack. Spawns
+     both on the deck and, via maybeSpawnSky, up in the open air — it is not
+     only a ground-level mechanic any more. */
+  const FAN_W        = 56;    // width of the column — smaller than it was
+  const FAN_REACH    = 140;   // column height, both for the trigger zone and the drawn effect
+  const FAN_BOUNCE   = -640;  // upward kick on each bounce, a notch gentler than the pad
+  const FAN_COOLDOWN = 0.55;  // seconds between bounces while she stays inside
 
   /* Cargo shown as hearts rather than a bar. Sparse on purpose — five states
      read at a glance where a smooth bar just looks like it is always half
@@ -190,6 +202,7 @@
     // 0 stands her up, 90 lays her flat.
     plane: { src: 'assets/game/dog-run.png', w: 72, h: 72, frames: 5, fps: 12, rotate: 38 },
     ball:  { src: 'assets/game/ball.png', w: 44, h: 44 },
+    fuel:  { src: 'assets/game/fuel.png', w: 34, h: 34 },
     // Frame 1 is the cable at rest; the rest are the bounce. Driven per pad
     // rather than on a clock, so a pad only moves when it is actually hit.
     pad:   { src: 'assets/game/pad.png', w: 100, h: 36, frames: 6 },
@@ -502,6 +515,7 @@
       particles: [],
       nextChunkAt: 260,
       nextSkyAt: 0,
+      nextFuelAt: 3,   // short initial delay before the first guaranteed canister
       chunksSinceBreather: 0,
       over: false,
       shake: 0,
@@ -588,20 +602,42 @@
     if (tries >= 6) return;
     const roll = Math.random();
 
-    if (roll < 0.34) {
+    if (roll < 0.32) {
       spawnEntry(SPAWN_X, band, 'zapper_m');
-    } else if (roll < 0.55) {
+    } else if (roll < 0.50) {
       spawnEntry(SPAWN_X, band, 'zapper_a', { ang: (Math.random() * 70 - 35) });
-    } else if (roll < 0.74) {
+    } else if (roll < 0.68) {
       spawnEntry(SPAWN_X, band, 'zapper_s', { spin: (Math.random() * 1.6 - 0.8) || 0.9 });
-    } else if (roll < 0.88) {
+    } else if (roll < 0.80) {
       spawnEntry(SPAWN_X, band, 'zapper_h');
-    } else if (roll < 0.96) {
+    } else if (roll < 0.88) {
+      // The fan is not only a ground fixture any more — it turns up in the
+      // open air too, so climbing has something to bounce off, not just
+      // things to dodge.
+      spawnEntry(SPAWN_X, band, 'fan');
+    } else if (roll < 0.95) {
       spawnEntry(SPAWN_X, band, 'ball');
     } else {
       spawnEntry(SPAWN_X, band, 'life');
     }
   }
+
+  /* A guaranteed canister on a wall-clock timer, independent of the
+     probabilistic sky/chunk spawners above — those are fine going quiet on a
+     hazard, but not on the one thing that keeps the tank from running dry. */
+  function maybeSpawnFuel() {
+    if (S.t < S.nextFuelAt) return;
+    S.nextFuelAt = S.t + FUEL_SPAWN_EVERY;
+
+    let band = S.planeY + (Math.random() - 0.5) * 220;
+    let tries = 0;
+    while (!spaceIsFree(SPAWN_X, band, 60) && tries++ < 6) {
+      band = S.planeY + (Math.random() - 0.5) * 260;
+    }
+    if (tries >= 6) return;
+    spawnEntry(SPAWN_X, band, 'fuel');
+  }
+
   function maybeSpawnChunk() {
     if (S.scrolled < S.nextChunkAt) return;
 
@@ -650,7 +686,8 @@
                                      w: 168, h: 13, dead: false }); break;
       // r scales with the icon so what you see stays what you can grab.
       case 'ball':     S.ents.push({ t, x, y, r: 24, dead: false }); break;
-      case 'fan':      S.ents.push({ t, x, y, w: FAN_W, h: 22, dead: false }); break;
+      case 'fuel':     S.ents.push({ t, x, y, r: 17, dead: false }); break;
+      case 'fan':      S.ents.push({ t, x, y, w: FAN_W, h: 14, cool: 0, dead: false }); break;
       case 'tramp':    S.ents.push({ t, x, y, w: 100, h: 18, animT: 0, dead: false }); break;
       case 'zapper_h': S.ents.push({ t, x, y, w: 168, h: 13, dead: false }); break;
       // A zapper that patrols up and down. baseY is where it was authored;
@@ -704,7 +741,12 @@
     S.t += dt;
 
     const ramp = (MAX_SCROLL_SPEED - BASE_SCROLL_SPEED) * (1 - Math.exp(-S.t / SPEED_RAMP_TAU));
-    S.speed = (BASE_SCROLL_SPEED + ramp + SPEED_CREEP * S.t) * SPEED_MULT;
+    // Distance milestones stack a flat multiplier on top of the time-based
+    // ramp/creep above, so speed takes a felt step every 1000m rather than
+    // relying on the continuous curve alone to read as "getting faster".
+    const milestones = Math.floor(S.distance / SPEED_MILESTONE_M);
+    S.speed = (BASE_SCROLL_SPEED + ramp + SPEED_CREEP * S.t) * SPEED_MULT
+              * (1 + milestones * SPEED_MILESTONE_STEP);
 
     const dx = S.speed * dt;
     S.scrolled += dx;
@@ -734,20 +776,24 @@
     }
     S.vel += (canThrust ? THRUST : pull) * dt;
 
-    /* --- fan updraught ---
-       Checked before the velocity clamp so it stacks with gravity rather than
-       replacing it: inside the column you still fall, just far more slowly,
-       and above FAN_VEL_CAP it stops adding lift so the fan cannot fling you
-       out of the level. */
+    /* --- fan: bounces rather than lifts ---
+       Checked before the velocity clamp so the kick is not immediately capped
+       away. Each fan owns its own cooldown (e.cool), decremented here every
+       frame regardless of contact, so lingering in the column gives a quick
+       series of bounces on a beat rather than one push and then silence. */
     S.inFan = false;
     for (const e of S.ents) {
       if (e.t !== 'fan' || e.dead) continue;
-      const above = S.planeY < e.y && S.planeY > e.y - FAN_REACH;
-      if (above && Math.abs(e.x - PLANE_X) < FAN_W / 2 + PLANE_R) {
+      if (e.cool > 0) e.cool -= dt;
+      const inside = S.planeY < e.y && S.planeY > e.y - FAN_REACH
+                     && Math.abs(e.x - PLANE_X) < FAN_W / 2 + PLANE_R;
+      if (inside) {
         S.inFan = true;
-        // Falls off with height, so the top of the column is a soft edge.
-        const strength = 1 - (e.y - S.planeY) / FAN_REACH;
-        if (S.vel > FAN_VEL_CAP) S.vel += FAN_LIFT * strength * dt;
+        if (!(e.cool > 0)) {
+          S.vel = FAN_BOUNCE;
+          e.cool = FAN_COOLDOWN;
+          burst(e.x, S.planeY, '#7ee8ff', 6);
+        }
       }
     }
 
@@ -838,6 +884,7 @@
 
     maybeSpawnChunk();
     maybeSpawnSky();
+    maybeSpawnFuel();
 
     /* --- entities --- */
     const px = PLANE_X, pr = PLANE_R;
@@ -1060,6 +1107,18 @@
           ctx.strokeStyle = '#c9a2ff';
           ctx.lineWidth = 3;
           ctx.beginPath(); ctx.arc(e.x, e.y + bob, e.r, 0, 6.2832); ctx.stroke();
+        });
+        break;
+      }
+      case 'fuel': {
+        const bob = Math.sin(S.t * 3.4 + e.x * 0.01) * 4;
+        glow('#5cff9d', 14, () => {
+          if (sprite('fuel', e.x, e.y + bob)) return;
+          ctx.strokeStyle = '#5cff9d';
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(e.x - 9, e.y + bob - 12, 18, 24);
+          ctx.fillStyle = 'rgba(92,255,157,.28)';
+          ctx.fillRect(e.x - 9, e.y + bob - 12, 18, 24);
         });
         break;
       }
