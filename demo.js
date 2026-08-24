@@ -1592,12 +1592,22 @@
   /* ---------------------------- music -----------------------------------
      Plays from Start Run to the results screen (see start()/finish() below),
      silent on the title screen and in attract mode. The mute choice is
-     remembered across visits — nobody wants to re-mute a tab every time. */
+     remembered across visits — nobody wants to re-mute a tab every time.
+
+     Two buttons drive the same state: the 22px speaker icon in the chrome
+     bar (small, but reachable mid-flight since the overlay is hidden then),
+     and a larger, labelled one sat under Start Run so it cannot be missed on
+     the title screen — where the corner icon, being 22px next to three
+     decorative dots, evidently was. setMuted() updates both in one call. */
   const MUTE_KEY = 'diana.muted';
   const bgm = document.getElementById('bgm');
-  const muteBtn = document.getElementById('mute-btn');
+  const muteBtn  = document.getElementById('mute-btn');
+  const muteBtn2 = document.getElementById('mute-btn-2');
   const iconSound = muteBtn ? muteBtn.querySelector('.icon-sound') : null;
   const iconMuted = muteBtn ? muteBtn.querySelector('.icon-muted') : null;
+  const iconPlay  = muteBtn2 ? muteBtn2.querySelector('.icon-play')  : null;
+  const iconPause = muteBtn2 ? muteBtn2.querySelector('.icon-pause') : null;
+  const muteBtn2Label = muteBtn2 ? muteBtn2.querySelector('span') : null;
 
   function setMuted(muted) {
     if (bgm) bgm.muted = muted;
@@ -1607,13 +1617,23 @@
     }
     if (iconSound) iconSound.hidden = muted;
     if (iconMuted) iconMuted.hidden = !muted;
+    if (muteBtn2) {
+      muteBtn2.setAttribute('aria-pressed', String(muted));
+      muteBtn2.setAttribute('aria-label', muted ? 'Play music' : 'Pause music');
+    }
+    if (iconPlay)  iconPlay.hidden = !muted;
+    if (iconPause) iconPause.hidden = muted;
+    if (muteBtn2Label) muteBtn2Label.textContent = muted ? 'Play music' : 'Pause music';
     try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e) { /* private browsing */ }
   }
   setMuted((() => { try { return localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { return false; } })());
 
-  if (muteBtn) {
-    muteBtn.addEventListener('click', () => setMuted(!(bgm && bgm.muted)));
-  }
+  // stopPropagation so a click here can never bubble into whatever put it on
+  // the title screen and get reinterpreted as "click anywhere to start" —
+  // mute-btn-2 in particular sits inside #overlay, right next to Start Run.
+  const toggleMute = (e) => { e.stopPropagation(); setMuted(!(bgm && bgm.muted)); };
+  if (muteBtn)  muteBtn.addEventListener('click',  toggleMute);
+  if (muteBtn2) muteBtn2.addEventListener('click', toggleMute);
 
   function boardHTML(highlightIndex) {
     if (!board.length) return '<p class="board-empty">No scores yet. Be the first.</p>';
@@ -1756,10 +1776,18 @@
       && performance.now() >= resultsLockUntil;
   }
 
+  // Space/Up/W start the run — except when one of these controls has focus,
+  // where Space is that control's own native activation (toggling mute, in
+  // particular) rather than a request to fly. Without this exclusion, Space
+  // on a focused audio button both fires its click AND starts the run, since
+  // preventDefault() below would otherwise race ahead of the button's own
+  // (keyup-triggered) activation and suppress it.
+  const startBlockedByFocusOn = () => [ovBtn, muteBtn, muteBtn2].includes(document.activeElement);
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
       if (!running) {
-        if (canStartNow() && document.activeElement !== ovBtn) {
+        if (canStartNow() && !startBlockedByFocusOn()) {
           start();
           e.preventDefault();
         }
