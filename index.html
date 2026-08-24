@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=34">
+<link rel="stylesheet" href="style.css?v=35">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -68,9 +68,11 @@
     <div class="game-frame">
       <div class="game-chrome">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="chrome-title">STARPORT CONTROL &mdash; OPEN RUN</span>
         <!-- Music starts on Start Run and stops when the results screen shows
              (see start()/finish() in demo.js). Muted state is remembered
-             across visits via localStorage. -->
+             across visits via localStorage. Pushed to the far right by
+             margin-left: auto on the button itself. -->
         <button id="mute-btn" class="mute-btn" type="button"
                 aria-pressed="false" aria-label="Mute music">
           <svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true">
@@ -86,7 +88,6 @@
                   stroke-linecap="round"/>
           </svg>
         </button>
-        <span class="chrome-title">STARPORT CONTROL &mdash; OPEN RUN</span>
       </div>
 
       <audio id="bgm" src="assets/audio/valkyries.mp3" preload="none" loop></audio>
@@ -123,20 +124,6 @@
               </div>
               <p class="keys"><kbd>Space</kbd> / <kbd>click</kbd> to activate flying</p>
               <button id="ov-btn" class="btn btn-cut" data-action="restart">Start run</button>
-              <!-- A second, larger audio toggle — the corner one (in the chrome
-                   bar) is easy to miss at 22px. Both control the same music
-                   preference and stay in sync; see setMuted() in demo.js. -->
-              <button id="mute-btn-2" class="audio-toggle" type="button"
-                      aria-pressed="false" aria-label="Pause music">
-                <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true" hidden>
-                  <path d="M8 5v14l11-7z" fill="currentColor"/>
-                </svg>
-                <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="6" y="5" width="4" height="14" fill="currentColor"/>
-                  <rect x="14" y="5" width="4" height="14" fill="currentColor"/>
-                </svg>
-                <span>Pause music</span>
-              </button>
             </div>
           </div>
         </div>
@@ -344,7 +331,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=34"></script>
-<script src="demo.js?v=34"></script>
+<script src="site.js?v=35"></script>
+<script src="demo.js?v=35"></script>
 </body>
 </html>

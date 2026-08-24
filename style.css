@@ -316,16 +316,17 @@ main, .topbar, footer { position: relative; z-index: 1; }
 }
 .game-chrome .dot:first-child { background: rgba(255,43,214,.6); }
 
-/* Mute toggle, tucked in beside the traffic-light dots at the front of the
-   bar. Two full icon SVGs swap via [hidden] rather than one path morphing --
-   simpler to keep crisp at this size than animating a path's `d`. */
+/* Mute toggle, at the far right of the chrome bar — margin-left: auto pushes
+   it there regardless of how long the title text ends up being. Two full
+   icon SVGs swap via [hidden] rather than one path morphing — simpler to
+   keep crisp at this size than animating a path's `d`. */
 .mute-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin-left: 4px;
+  margin-left: auto;
   padding: 0;
   border: 0;
   border-radius: 5px;
@@ -541,28 +542,6 @@ main, .topbar, footer { position: relative; z-index: 1; }
 .overlay p { color: var(--text-dim); margin: 0 0 14px; font-size: 15px; }
 .overlay .keys { font-size: 13px; color: var(--text-faint); margin-bottom: 22px; }
 
-/* Second audio toggle, sat under Start Run so it is impossible to miss —
-   the 22px corner icon (.mute-btn) stays too, for control mid-flight. */
-.audio-toggle {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 16px auto 0;
-  padding: 8px 16px;
-  border: 1px solid rgba(0,240,255,.35);
-  border-radius: 999px;
-  background: rgba(0,240,255,.06);
-  color: var(--text-dim);
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: .04em;
-  cursor: pointer;
-  transition: color .15s, border-color .15s, background .15s;
-}
-.audio-toggle:hover { color: var(--cyan); border-color: rgba(0,240,255,.6); background: rgba(0,240,255,.12); }
-.audio-toggle svg { width: 14px; height: 14px; }
-.audio-toggle[aria-pressed="true"] { color: #ff5a7a; border-color: rgba(255,90,122,.4); }
-.audio-toggle[aria-pressed="true"]:hover { background: rgba(255,90,122,.1); }
 
 kbd {
   font-family: var(--mono);
