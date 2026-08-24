@@ -337,8 +337,19 @@ main, .topbar, footer { position: relative; z-index: 1; }
 }
 .mute-btn:hover { color: var(--cyan); background: rgba(0,240,255,.1); }
 .mute-btn svg { width: 15px; height: 15px; }
-.mute-btn[aria-pressed="true"] { color: #ff5a7a; }
-.mute-btn[aria-pressed="true"]:hover { background: rgba(255,90,122,.12); }
+/* Explicit rather than relying on the browser's default [hidden] rule: it
+   was not applying reliably here, so both the sound and muted icons ended
+   up rendering at once, stacked — reading as a duplicated button. */
+.mute-btn svg[hidden] { display: none; }
+/* .is-muted rather than [aria-pressed="true"]: the attribute selector
+   verifiably matched (confirmed via .matches() in testing) but the color it
+   should have applied never took effect — a cascade quirk in this specific
+   renderer. A class, toggled with classList in JS, is about as reliably
+   supported as CSS gets, so the visual state is driven by that instead.
+   aria-pressed stays on the element for accessibility; it just no longer
+   doubles as the styling hook. */
+.mute-btn.is-muted { color: #ff5a7a; }
+.mute-btn.is-muted:hover { background: rgba(255,90,122,.12); }
 
 .chrome-title {
   margin-left: 10px;

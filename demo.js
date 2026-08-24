@@ -68,7 +68,11 @@
   const CARGO_MAX            = 50;
   const CARGO_HAZARD_DAMAGE  = 18;
   const CARGO_BOUNCE_DAMAGE  = 10;
-  const CARGO_HIGH_G_THRESH  = 350;   // only used for hard-landing damage now
+  // Raised alongside DIVE_VEL_CLAMP (see below): at the old 350, an ordinary
+  // dip toward the deck was already fast enough to trigger this — it read as
+  // random, unexplained damage rather than "you hit the ground too hard".
+  // Now it takes a genuinely committed high-speed impact, and it says so.
+  const CARGO_HIGH_G_THRESH  = 620;
 
   // Sitting on the deck grinds the cargo down for as long as you stay there.
   // Against the halved cargo pool that is a bit over two seconds from full to
@@ -145,12 +149,25 @@
   // Flight physics.
   const GRAVITY     = 1500;
   const THRUST      = -2750;
-  const VEL_CLAMP   = 700;
+  const VEL_CLAMP   = 700;    // caps ASCENT always, and unpowered falls too
   const TRAMP_BOOST = -780;
-  // Dive: past DIVE_FROM the fall ramps toward DIVE_GRAVITY, so a long drop
-  // has weight to it instead of floating down at a constant rate.
-  const DIVE_FROM    = 260;
-  const DIVE_GRAVITY = 3400;
+  /* Dive: past DIVE_FROM the fall ramps toward DIVE_GRAVITY, so a long drop
+     has weight to it instead of floating down at a constant rate. Falling
+     also gets its own, higher terminal velocity (DIVE_VEL_CLAMP) — without
+     it, DIVE_GRAVITY only made a fall reach the SAME 700 cap sooner, never
+     actually faster. Ascent is unaffected; it never used this clamp. */
+  const DIVE_FROM      = 260;
+  const DIVE_GRAVITY   = 3400;
+  const DIVE_VEL_CLAMP = 1050;
+
+  /* A "big fall" is measured in distance dropped below the last peak she
+     reached, not in velocity — velocity alone converges to the same terminal
+     speed whether the fall started 40px or 4000px up, so it cannot tell a
+     routine dip from a real dive. This distance gate is what the side-of-
+     screen dive effect and the character's straight-down pose both key off,
+     so neither shows up for an ordinary short drop. */
+  const BIG_FALL_MIN  = 260;   // px below her peak before the effect starts
+  const BIG_FALL_FULL = 480;   // px below her peak at full intensity
 
   // Spawner.
   const SPAWN_X = W + 90;
@@ -396,6 +413,11 @@
       "The crates are making a noise. A bad noise.",
       "Please stop hitting things.",
     ],
+    land: [
+      "That is not how landings work.",
+      "Hard landing. That one was on you.",
+      "You hit the deck like you meant it. Cargo did not enjoy that.",
+    ],
     ground: [
       "You're scraping the deck! Pull up!",
       "The cargo is grinding. UP. Now.",
@@ -501,6 +523,8 @@
       score: 0,
       speed: BASE_SCROLL_SPEED * SPEED_MULT,
       planeY: 300,
+      peakY: 300,     // highest point reached since the last floor contact
+      bigFall: 0,     // 0..1, how deep into a big-height fall she currently is
       camY: 0,
       diving: 0,
       vel: 0,
@@ -564,7 +588,7 @@
     }
     if (capPanel) {
       capPanel.dataset.mood =
-        (kind === 'hit' || kind === 'ground' || kind === 'dead') ? 'alarm'
+        (kind === 'hit' || kind === 'land' || kind === 'ground' || kind === 'dead') ? 'alarm'
         : (kind === 'record') ? 'good' : 'calm';
     }
   }
@@ -701,14 +725,17 @@
 
   /* ----------------------------- update --------------------------------- */
 
-  function damageCargo(amount, quiet) {
+  // `cause` picks which captain-line pool explains the hit — a hard landing
+  // needs to read as distinct from a hazard hit, or it just feels like random
+  // damage with no visible cause.
+  function damageCargo(amount, quiet, cause) {
     if (S.over) return;
     S.cargo = Math.max(0, S.cargo - amount);
     S.momentum = 1.0;              // Momentum Bank resets the moment you take a hit.
     S.lastDamageDist = S.distance;
     S.shake = Math.min(16, S.shake + 11);
     S.flash = 0.5;
-    if (!quiet) say('hit');
+    if (!quiet) say(cause === 'land' ? 'land' : 'hit');
     for (let i = 0; i < 14; i++) {
       S.particles.push({
         x: PLANE_X, y: S.planeY,
@@ -768,7 +795,7 @@
        at once, so the dive is always a choice. */
     let pull = GRAVITY;
     if (!canThrust && S.vel > DIVE_FROM) {
-      const into = Math.min(1, (S.vel - DIVE_FROM) / (VEL_CLAMP - DIVE_FROM));
+      const into = Math.min(1, (S.vel - DIVE_FROM) / (DIVE_VEL_CLAMP - DIVE_FROM));
       pull = GRAVITY + (DIVE_GRAVITY - GRAVITY) * into;
       S.diving = into;
     } else {
@@ -797,18 +824,28 @@
       }
     }
 
-    S.vel = Math.max(-VEL_CLAMP, Math.min(VEL_CLAMP, S.vel));
+    // Falling gets a higher ceiling than climbing — see DIVE_VEL_CLAMP above.
+    S.vel = Math.max(-VEL_CLAMP, Math.min(canThrust ? VEL_CLAMP : DIVE_VEL_CLAMP, S.vel));
     S.planeY += S.vel * dt;
+
+    /* How far below her last peak she has fallen, purely as distance — this
+       is what "a big height" means, independent of how fast she happens to
+       be moving right now. peakY resets to the deck whenever she lands, so
+       each fall is measured fresh from wherever it actually started. */
+    S.peakY = Math.min(S.peakY, S.planeY);
+    S.bigFall = Math.max(0, Math.min(1,
+      (S.planeY - S.peakY - BIG_FALL_MIN) / (BIG_FALL_FULL - BIG_FALL_MIN)));
 
     // No ceiling. She can climb as far as fuel allows; the camera follows.
     if (S.planeY > FLOOR) {
       S.planeY = FLOOR;
+      S.peakY = FLOOR;
       if (S.shield) {
         // The bubble takes the deck for you and throws you clear.
         S.vel = SHIELD_BOUNCE;
         popShield();
       } else {
-        if (S.vel > CARGO_HIGH_G_THRESH) damageCargo(CARGO_BOUNCE_DAMAGE);
+        if (S.vel > CARGO_HIGH_G_THRESH) damageCargo(CARGO_BOUNCE_DAMAGE, false, 'land');
         S.vel = -Math.abs(S.vel) * 0.28;
       }
     }
@@ -1290,7 +1327,16 @@
     // sprite sits inside the translate/rotate, so it banks with the flight
     // angle for free, and it flushes red as cargo drops so switching to art
     // does not cost the damage feedback the shapes gave.
-    const pose = (SPRITES.plane.rotate || 0) * Math.PI / 180;
+    //
+    // The resting pose (SPRITES.plane.rotate) blends toward straight down —
+    // total rotation of exactly 90°, regardless of the current tilt — as
+    // S.bigFall approaches 1. At bigFall 0 this is identical to the old fixed
+    // pose, so ordinary flight is unaffected; only a genuine big-height dive
+    // reorients her.
+    const baseDeg = SPRITES.plane.rotate || 0;
+    const normalTotal = tilt + baseDeg * Math.PI / 180;
+    const diveTotal = normalTotal + (Math.PI / 2 - normalTotal) * S.bigFall;
+    const pose = diveTotal - tilt;
     if (pose) ctx.rotate(pose);
     if (!spriteTinted('plane', 0, 0, '#ff4d6d', dmgFrac * 0.6)) {
       if (pose) ctx.rotate(-pose);   // the drawn fallback stands upright
@@ -1463,11 +1509,13 @@
 
   /* Speed lines while diving. Drawn in SCREEN space on purpose: they are a
      camera effect, not something in the world, so they must not slide with
-     the camera translate. Density and length both ride S.diving, so the
-     effect arrives with the speed rather than snapping on at a threshold. */
+     the camera translate. Gated on S.bigFall (distance below her last peak),
+     not S.diving (velocity) — velocity alone cannot tell a routine dip from a
+     real dive, since both converge on the same speed given enough time. This
+     is why the effect no longer shows for every ordinary drop. */
   function drawDiveEffect() {
-    if (S.diving <= 0.02 || S.over) return;
-    const n = Math.floor(6 + S.diving * 26);
+    if (S.bigFall <= 0.02 || S.over) return;
+    const n = Math.floor(6 + S.bigFall * 26);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = '#9fd8ff';
@@ -1476,8 +1524,8 @@
       // Seeded off i and time so streaks flicker rather than crawl.
       const sx = ((i * 137.5 + S.t * 40) % W);
       const sy = ((i * 61.7 + S.t * 1500) % (H + 200)) - 100;
-      const len = 26 + S.diving * 90 * (0.4 + (i % 5) / 5);
-      ctx.globalAlpha = 0.10 + S.diving * 0.30;
+      const len = 26 + S.bigFall * 90 * (0.4 + (i % 5) / 5);
+      ctx.globalAlpha = 0.10 + S.bigFall * 0.30;
       ctx.beginPath();
       ctx.moveTo(sx, sy);
       ctx.lineTo(sx, sy + len);
@@ -1486,7 +1534,7 @@
     // A wash at the edges so the tunnel closes in as it gets fast.
     const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.78);
     g.addColorStop(0, 'rgba(120,190,255,0)');
-    g.addColorStop(1, 'rgba(120,190,255,' + (S.diving * 0.16) + ')');
+    g.addColorStop(1, 'rgba(120,190,255,' + (S.bigFall * 0.16) + ')');
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = g;
@@ -1603,14 +1651,27 @@
   const iconSound = muteBtn ? muteBtn.querySelector('.icon-sound') : null;
   const iconMuted = muteBtn ? muteBtn.querySelector('.icon-muted') : null;
 
+  // toggleHidden uses setAttribute/removeAttribute rather than the `.hidden`
+  // IDL property: on these inline SVGs, assigning `.hidden = true` updates
+  // the property but does not reflect to the actual `hidden` attribute in
+  // this renderer, so the CSS `[hidden]` selector never saw the change and
+  // both icons stayed visible at once — which is what looked like a
+  // duplicated button. Attribute calls sidestep that reflection entirely.
+  const toggleHidden = (el, hide) => {
+    if (!el) return;
+    if (hide) el.setAttribute('hidden', '');
+    else el.removeAttribute('hidden');
+  };
+
   function setMuted(muted) {
     if (bgm) bgm.muted = muted;
     if (muteBtn) {
       muteBtn.setAttribute('aria-pressed', String(muted));
       muteBtn.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
+      muteBtn.classList.toggle('is-muted', muted);   // drives the red styling; see style.css
     }
-    if (iconSound) iconSound.hidden = muted;
-    if (iconMuted) iconMuted.hidden = !muted;
+    toggleHidden(iconSound, muted);
+    toggleHidden(iconMuted, !muted);
     try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e) { /* private browsing */ }
   }
   setMuted((() => { try { return localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { return false; } })());
