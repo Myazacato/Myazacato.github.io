@@ -80,9 +80,6 @@
   const FUEL_DRAIN_THRUST = 11.0 * FUEL_ECONOMY;
   const FUEL_PICKUP_GAIN  = 34;
 
-  // Scoring. Distance is banked through the Momentum multiplier, so flying
-  // clean is worth more than flying far.
-  const SEED_POINTS = 25;
 
   /* ------------------------------- shield --------------------------------
      A bubble you can pick up that wraps around her. It absorbs exactly one
@@ -192,8 +189,6 @@
     // turns the stance into a forward flight pose without redrawing anything.
     // 0 stands her up, 90 lays her flat.
     plane: { src: 'assets/game/dog-run.png', w: 72, h: 72, frames: 5, fps: 12, rotate: 38 },
-    coin:  { src: null, w: 26, h: 26 },   // e.g. 'assets/game/coin.png'
-    fuel:  { src: 'assets/game/fuel.png', w: 38, h: 38 },
     ball:  { src: 'assets/game/ball.png', w: 44, h: 44 },
     // Frame 1 is the cable at rest; the rest are the bounce. Driven per pad
     // rather than on a clock, so a pad only moves when it is actually hit.
@@ -383,7 +378,7 @@
       "Nice line. I'll pretend that was on purpose.",
     ],
     hit: [
-      "That's coming out of your seed deposit.",
+      "That is coming out of your pay.",
       "I felt that from here.",
       "The crates are making a noise. A bad noise.",
       "Please stop hitting things.",
@@ -394,8 +389,8 @@
       "That's the floor. We do not like the floor.",
     ],
     fuel: [
-      "Fuel's low. I'd find a canister.",
-      "Running dry — start looking up.",
+      "Fuel is low. Whatever you are doing, do less of it.",
+      "Running dry. Choose where you spend the rest.",
     ],
     far: [
       "Still flying. Genuinely surprised.",
@@ -649,9 +644,7 @@
       case 'zapper_s': S.ents.push({ t, x, y, ang: Math.random() * 3.14,
                                      spinRate: (opts && opts.spin) || 1,
                                      w: 168, h: 13, dead: false }); break;
-      case 'coin':     S.ents.push({ t, x, y, r: 11, spin: Math.random() * 6.28, dead: false }); break;
       // r scales with the icon so what you see stays what you can grab.
-      case 'fuel':     S.ents.push({ t, x, y, r: 19, dead: false }); break;
       case 'ball':     S.ents.push({ t, x, y, r: 24, dead: false }); break;
       case 'fan':      S.ents.push({ t, x, y, w: FAN_W, h: 22, dead: false }); break;
       case 'tramp':    S.ents.push({ t, x, y, w: 100, h: 18, animT: 0, dead: false }); break;
@@ -849,15 +842,7 @@
       if (e.x < -260) e.dead = true;
       if (e.dead) continue;
 
-      if (e.t === 'coin') {
-        e.spin += dt * 5;
-        if (Math.hypot(e.x - px, e.y - S.planeY) < e.r + pr) {
-          e.dead = true;
-          S.seeds++;
-          S.score += SEED_POINTS;
-          burst(e.x, e.y, '#ffd75c', 6);
-        }
-      } else if (e.t === 'life') {
+      if (e.t === 'life') {
         if (Math.hypot(e.x - px, e.y - S.planeY) < e.r + pr) {
           e.dead = true;
           // Restores exactly one heart. Rare enough that it is a rescue rather
@@ -1045,37 +1030,6 @@
 
   function drawEntity(e) {
     switch (e.t) {
-      case 'coin': {
-        const sq = Math.abs(Math.cos(e.spin));
-        glow('#ffd75c', 14, () => {
-          // A custom coin sprite keeps the spin by squashing horizontally,
-          // exactly as the drawn one does — and still animates if it is a sheet.
-          if (sprite('coin', e.x, e.y, SPRITES.coin.w * (0.35 + sq * 0.65))) return;
-          ctx.fillStyle = '#ffd75c';
-          ctx.beginPath();
-          ctx.ellipse(e.x, e.y, e.r * (0.35 + sq * 0.65), e.r, 0, 0, 6.2832);
-          ctx.fill();
-        });
-        break;
-      }
-      case 'fuel': {
-        // Pickups keep a soft halo even as real artwork, unlike the character.
-        // She is always in the same spot on screen and never needs help being
-        // found; canisters are small, numerous, and must be spotted at speed.
-        glow('#5cff9d', 12, () => {
-          if (sprite('fuel', e.x, e.y)) return;
-          ctx.strokeStyle = '#5cff9d';
-          ctx.lineWidth = 2.5;
-          ctx.strokeRect(e.x - 11, e.y - 14, 22, 28);
-          ctx.fillStyle = 'rgba(92,255,157,.28)';
-          ctx.fillRect(e.x - 11, e.y - 14, 22, 28);
-          ctx.fillStyle = '#5cff9d';
-          ctx.font = 'bold 13px ui-monospace, monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText('F', e.x, e.y + 5);
-        });
-        break;
-      }
       case 'life': {
         // A pickup heart, same shape as the HUD hearts so the connection is
         // instant — you do not have to be told what it does.
@@ -1508,7 +1462,7 @@
     ctx.font = '10px ui-monospace, monospace';
     ctx.fillStyle = '#5c6584';
     ctx.fillText('SCORE ' + Math.floor(S.score) + '   BEST ' + Math.max(bestScore(), 0)
-                 + '   SEEDS ' + S.seeds, PX + 150, PY + PH + 20);
+                 , PX + 150, PY + PH + 20);
 
     if (S.momentum > 1) {
       ctx.textAlign = 'center';
@@ -1585,7 +1539,6 @@
       `<dl class="result-grid">
          <dt>Score</dt><dd><strong>${score}</strong></dd>
          <dt>Distance</dt><dd>${Math.floor(S.distance)} m</dd>
-         <dt>Seeds</dt><dd>${S.seeds}</dd>
        </dl>`;
 
     if (isRecord) {
