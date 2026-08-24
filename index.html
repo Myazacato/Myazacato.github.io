@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=87">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -25,7 +25,6 @@
   <nav>
     <a href="#play">Play</a>
     <a href="#games">Games</a>
-    <a href="#art">Art &amp; UI</a>
     <a href="#contact">Contact</a>
   </nav>
 </header>
@@ -34,23 +33,27 @@
 
   <!-- ============ HERO ============ -->
   <section class="hero">
-    <p class="eyebrow">Game Design &middot; Godot &middot; Systems &amp; Economy</p>
-    <h1>Carolina<br>Toyoshima</h1>
-    <p class="lede">
-      I design and build games &mdash; the kind where the economy, the level
-      generator and the scoring screen are all arguing about the same thing.
-      <em>Diana</em> is a delivery roguelite in Godot&nbsp;4,
-      and you can play a piece of it right here on this page.
-    </p>
-    <div class="hero-cta">
-      <a class="btn btn-primary" href="#play">Play in your browser</a>
-      <a class="btn" href="#games">See the work</a>
+    <div class="hero-text">
+      <p class="eyebrow">Product/web designer &middot; Game Design &middot; UI illustration</p>
+      <h1>Carolina<br>Toyoshima</h1>
+      <p class="lede">
+        Designer living in Lisbon. I love solving problems and working on
+        projects that are genuinely interesting &mdash; <em>Diana</em> is one
+        of them, a delivery roguelite in Godot&nbsp;4 you can play right here.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#play">Play in your browser</a>
+        <a class="btn" href="#games">See the work</a>
+      </div>
+      <ul class="hero-links">
+        <li><a href="https://github.com/Myazacato">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/ctoyoshima/">LinkedIn</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
     </div>
-    <ul class="hero-links">
-      <li><a href="https://github.com/Myazacato">GitHub</a></li>
-      <li><a href="https://www.linkedin.com/in/ctoyoshima/">LinkedIn</a></li>
-      <li><a href="#contact">Contact</a></li>
-    </ul>
+    <div class="hero-art-frame">
+      <img class="hero-art" src="assets/art/astronaut-study.png" alt="" aria-hidden="true">
+    </div>
   </section>
 
   <!-- ============ PLAYABLE DEMO ============ -->
@@ -59,7 +62,7 @@
       <span class="num">01</span>
       <h2>Playable demo</h2>
       <p class="section-sub">
-        The core flight loop of <em>Diana</em>, rebuilt in plain
+        Play the core gameplay loop of <em>Diana</em>, rebuilt in plain
         JavaScript so it runs instantly on any device &mdash; no plugin, no download.
         The full game is built in Godot&nbsp;4.
       </p>
@@ -112,6 +115,8 @@
           <canvas id="game" width="960" height="540" aria-label="Playable flight demo"></canvas>
           <!-- Title-screen dressing: a snapshot of the crew, held in frame. -->
           <img class="title-photo" src="assets/game/polaroid.png" alt="" aria-hidden="true">
+          <!-- Results-screen dressing: same corner as the title photo. -->
+          <img class="end-photo" src="assets/game/end-photo.png" alt="" aria-hidden="true">
           <div id="overlay" class="overlay">
             <div class="overlay-inner">
               <h3 id="ov-title">DIANA</h3>
@@ -133,7 +138,10 @@
     <p class="fineprint">
       Built from scratch for this page &mdash; same speed curve, chunk spawner and
       cargo-damage values as the Godot build, condensed into one file. High
-      scores are saved in your own browser.
+      scores are saved in your own browser. Music: Wagner's
+      <em>Ride of the Valkyries</em>, conducted by Philip Milman, from
+      <a href="https://www.classicals.de/wagner-valkyrie">classicals.de</a>
+      (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY</a>).
     </p>
   </section>
 
@@ -275,37 +283,10 @@
     </article>
   </section>
 
-  <!-- ============ ART & UI ============ -->
-  <section id="art" class="section">
-    <div class="section-head">
-      <span class="num">03</span>
-      <h2>Art &amp; UI</h2>
-      <p class="section-sub">
-        Character work, interface design and visual development for
-        <em>Space Dog</em> and <em>Diana</em>.
-      </p>
-    </div>
-
-    <div class="gallery">
-      <figure class="tile tile-wide">
-        <img src="assets/art/mission-complete-ui.svg" alt="Mission Complete results screen: a neon cyberpunk interface with distance flown, boosts used, near-misses dodged and a speed combo multiplier, with a cat officer portrait in the sidebar.">
-        <figcaption>Mission Complete screen &mdash; results UI, built as scalable vector</figcaption>
-      </figure>
-      <figure class="tile tile-wide">
-        <img src="assets/art/space-dog-character-sheet.png" alt="Character sheet for a small white space dog in a spacesuit, showing idle, run, jump, double jump, hover, star-blast attack, hurt and victory poses plus a row of jetpack flight frames.">
-        <figcaption>Space Dog &mdash; character sheet and animation states</figcaption>
-      </figure>
-      <figure class="tile">
-        <img src="assets/art/astronaut-study.png" alt="Blue and yellow line study of an astronaut floating in a spacesuit.">
-        <figcaption>Astronaut &mdash; pose and silhouette study</figcaption>
-      </figure>
-    </div>
-  </section>
-
   <!-- ============ CONTACT ============ -->
   <section id="contact" class="section contact">
     <div class="section-head">
-      <span class="num">04</span>
+      <span class="num">03</span>
       <h2>Get in touch</h2>
     </div>
     <p class="contact-lede">
@@ -331,7 +312,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=40"></script>
-<script src="demo.js?v=40"></script>
+<script src="site.js?v=87"></script>
+<script src="demo.js?v=87"></script>
 </body>
 </html>

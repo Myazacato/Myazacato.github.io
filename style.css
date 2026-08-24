@@ -102,7 +102,37 @@ main, .topbar, footer { position: relative; z-index: 1; }
   max-width: var(--maxw);
   margin: 0 auto;
   padding: clamp(70px, 13vw, 150px) max(24px, 5vw) clamp(60px, 9vw, 110px);
+  display: flex;
+  align-items: center;
+  gap: clamp(24px, 5vw, 64px);
 }
+
+.hero-text { flex: 1 1 auto; min-width: 0; }
+
+/* The astronaut study, repurposed from the old Art & UI gallery as a hero
+   accent instead — already transparent line art, so it just needs a glow to
+   read as part of this palette rather than a pasted-in sketch. Corner
+   brackets on the frame around it (not the img itself — a replaced element
+   cannot host ::before/::after) are the "more cyberpunk at the edges" touch,
+   the same targeting-reticle language a HUD would use, kept to two opposite
+   corners so it reads as an accent, not a whole extra border. */
+.hero-art-frame {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(140px, 20vw, 260px);
+  padding: 14px;
+}
+.hero-art { display: block; width: 100%; height: auto; filter: drop-shadow(0 0 22px rgba(0,240,255,.25)); opacity: .9; }
+.hero-art-frame::before,
+.hero-art-frame::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(0,240,255,.55);
+}
+.hero-art-frame::before { top: 0; left: 0; border-right: none; border-bottom: none; }
+.hero-art-frame::after  { bottom: 0; right: 0; border-left: none; border-top: none; }
 
 .eyebrow {
   font-family: var(--mono);
@@ -114,15 +144,12 @@ main, .topbar, footer { position: relative; z-index: 1; }
 }
 
 .hero h1 {
-  font-size: clamp(52px, 11vw, 108px);
+  font-size: clamp(44px, 9vw, 90px);
   line-height: .94;
   letter-spacing: -.035em;
   font-weight: 700;
   margin: 0 0 28px;
-  background: linear-gradient(105deg, #ffffff 15%, var(--cyan) 58%, var(--magenta) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text);
 }
 
 .lede {
@@ -290,6 +317,8 @@ main, .topbar, footer { position: relative; z-index: 1; }
   color: var(--cyan);
   font-size: 12px;
 }
+.fineprint a { color: var(--cyan); text-decoration: underline; text-underline-offset: 2px; }
+.fineprint a:hover { color: var(--text); }
 
 /* =========================== GAME FRAME ================================== */
 
@@ -434,8 +463,18 @@ main, .topbar, footer { position: relative; z-index: 1; }
 }
 .captain[data-mood="alarm"] .cap-bubble { border-color: rgba(255,77,109,.55); }
 .captain[data-mood="alarm"] .cap-bubble p { color: #ff8fa3; }
+/* The tail is its own element with its own hardcoded border, so a mood
+   change to the bubble left it behind — a red bubble with a cyan corner. */
+.captain[data-mood="alarm"] .cap-bubble::before {
+  border-right-color: rgba(255,77,109,.55);
+  border-bottom-color: rgba(255,77,109,.55);
+}
 .captain[data-mood="good"] .cap-bubble { border-color: rgba(92,255,157,.5); }
 .captain[data-mood="good"] .cap-bubble p { color: #9dffc6; }
+.captain[data-mood="good"] .cap-bubble::before {
+  border-right-color: rgba(92,255,157,.5);
+  border-bottom-color: rgba(92,255,157,.5);
+}
 
 /* ---- portrait ----
    Captain Meow is a three-frame 192x64 strip. The idle is a CSS step
@@ -506,6 +545,27 @@ main, .topbar, footer { position: relative; z-index: 1; }
 .game-stage:not([data-state="intro"]) .title-photo {
   opacity: 0;
   transform: translateY(60%);
+}
+
+/* Results-screen photo, same corner as the title one — they never show at
+   the same time anyway, since they are gated on opposite data-state values. */
+.end-photo {
+  position: absolute;
+  right: 1.5%;
+  bottom: 0;
+  width: 22%;
+  max-width: 170px;
+  height: auto;
+  z-index: 3;
+  pointer-events: none;
+  image-rendering: pixelated;
+  opacity: 0;
+  transform: translateY(60%);
+  transition: opacity .3s ease, transform .35s ease;
+}
+.game-stage[data-state="results"] .end-photo {
+  opacity: 1;
+  transform: translateY(6%);
 }
 
 #game {
@@ -594,46 +654,16 @@ kbd {
 }
 @keyframes recordPulse { 50% { opacity: .45; } }
 
-.overlay .initials-label {
-  display: block;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: .16em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: 10px;
-}
-
-.overlay .initials {
-  display: block;
-  width: 172px;
-  margin: 0 auto 20px;
-  padding: 10px 0 10px 14px;
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 34px;
-  letter-spacing: .42em;   /* the trailing gap is why padding is left-biased */
-  text-align: center;
-  text-transform: uppercase;
-  color: var(--cyan);
-  background: var(--bg-2);
-  border: 1px solid rgba(0,240,255,.5);
-  border-radius: 8px;
-  outline: none;
-  caret-color: var(--magenta);
-}
-.overlay .initials:focus { border-color: var(--cyan); box-shadow: 0 0 24px rgba(0,240,255,.3); }
-
 .overlay .board {
   list-style: none;
   padding: 0;
   margin: 6px auto 20px;
-  max-width: 300px;
+  max-width: 220px;
   text-align: left;
 }
 .overlay .board li {
   display: grid;
-  grid-template-columns: 26px 1fr auto;
+  grid-template-columns: 26px 1fr;
   gap: 12px;
   align-items: baseline;
   font-family: var(--mono);
@@ -647,8 +677,7 @@ kbd {
   color: #ffd75c;
 }
 .board-rank  { color: var(--text-faint); font-size: 12px; }
-.board-name  { letter-spacing: .18em; }
-.board-score { font-weight: 700; }
+.board-score { font-weight: 700; text-align: right; }
 
 .overlay .board-empty {
   font-family: var(--mono);
@@ -947,6 +976,9 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
   .topbar nav a { padding: 5px 8px; font-size: 12px; }
   .workitem { grid-template-columns: 1fr; gap: 14px; }
   .case-head { flex-direction: column; }
+  .hero { flex-direction: column-reverse; text-align: center; }
+  .hero-art-frame { width: 150px; }
+  .hero-cta, .hero-links { justify-content: center; }
   html { scroll-padding-top: 130px; }
 }
 

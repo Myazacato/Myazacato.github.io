@@ -52,19 +52,12 @@ When both are gone, the dashed outlines and "PLACEHOLDER" labels disappear.
 
 Copy the whole `<article class="case">` block in the Games section and edit it.
 
-### Adding art
+### Art & UI
 
-Drop image files into `assets/art/`, then in the Art section replace each
-
-```html
-<div class="tile-ph">Drop art here</div>
-```
-
-with
-
-```html
-<img src="assets/art/your-file.png" alt="short description">
-```
+The gallery section is removed for now — the astronaut study from
+`assets/art/` lives in the hero instead. The other pieces (`mission-complete-ui.svg`,
+`space-dog-character-sheet.png`) are still in `assets/art/`, just not linked
+from the page.
 
 ## Previewing locally
 
@@ -118,6 +111,7 @@ separate implementation, not an export of the Godot build.
 mute toggle sits in the game's title bar, and the choice persists across
 visits).
 
-> Music by Nesrality, from [Pixabay](https://pixabay.com/music/). Used under
-> the Pixabay Content License (free for commercial use, no attribution
-> required — credited here anyway).
+> Wagner, "Ride of the Valkyries" (WWV 86b), orchestral recording conducted
+> by Philip Milman, from [classicals.de](https://www.classicals.de/wagner-valkyrie).
+> Licensed under [CC BY](https://creativecommons.org/licenses/by/4.0/) —
+> attribution required, commercial use permitted.
