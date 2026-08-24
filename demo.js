@@ -74,7 +74,7 @@
   // drains faster. At 1.6 a full tank is worth about 15 seconds of gliding,
   // 5.7 of continuous climbing, or 8 at half throttle — so canisters are
   // something you steer toward rather than scramble between.
-  const FUEL_ECONOMY      = 1.6;
+  const FUEL_ECONOMY      = 1.2;
   const FUEL_MAX          = 100;
   const FUEL_DRAIN_IDLE   = 4.2 * FUEL_ECONOMY;
   const FUEL_DRAIN_THRUST = 11.0 * FUEL_ECONOMY;
