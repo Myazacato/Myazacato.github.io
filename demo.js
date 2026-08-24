@@ -1589,6 +1589,32 @@
   const ovBtn   = document.getElementById('ov-btn');
   const ovKeys  = overlay ? overlay.querySelector('.keys') : null;
 
+  /* ---------------------------- music -----------------------------------
+     Plays from Start Run to the results screen (see start()/finish() below),
+     silent on the title screen and in attract mode. The mute choice is
+     remembered across visits — nobody wants to re-mute a tab every time. */
+  const MUTE_KEY = 'diana.muted';
+  const bgm = document.getElementById('bgm');
+  const muteBtn = document.getElementById('mute-btn');
+  const iconSound = muteBtn ? muteBtn.querySelector('.icon-sound') : null;
+  const iconMuted = muteBtn ? muteBtn.querySelector('.icon-muted') : null;
+
+  function setMuted(muted) {
+    if (bgm) bgm.muted = muted;
+    if (muteBtn) {
+      muteBtn.setAttribute('aria-pressed', String(muted));
+      muteBtn.setAttribute('aria-label', muted ? 'Unmute music' : 'Mute music');
+    }
+    if (iconSound) iconSound.hidden = muted;
+    if (iconMuted) iconMuted.hidden = !muted;
+    try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e) { /* private browsing */ }
+  }
+  setMuted((() => { try { return localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { return false; } })());
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', () => setMuted(!(bgm && bgm.muted)));
+  }
+
   function boardHTML(highlightIndex) {
     if (!board.length) return '<p class="board-empty">No scores yet. Be the first.</p>';
     return '<ol class="board">' + board.map((e, i) =>
@@ -1603,6 +1629,7 @@
     if (S.over) return;
     S.over = true;
     running = false;
+    if (bgm) bgm.pause();
 
     const score = Math.floor(S.score);
     const isRecord = qualifies(score);
@@ -1687,6 +1714,13 @@
     running = true;
     setStage('playing');
     say('start', { force: true, hold: 3200 });
+    if (bgm) {
+      bgm.currentTime = 0;
+      // Autoplay is blocked without a user gesture, but start() only ever
+      // runs from a keydown/click handler, so this is always inside one —
+      // the catch is just a guard against the odd browser that still balks.
+      bgm.play().catch(() => {});
+    }
     lastTime = performance.now();
     requestAnimationFrame(loop);
   }

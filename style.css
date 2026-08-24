@@ -315,6 +315,30 @@ main, .topbar, footer { position: relative; z-index: 1; }
   background: var(--line);
 }
 .game-chrome .dot:first-child { background: rgba(255,43,214,.6); }
+
+/* Mute toggle, tucked in beside the traffic-light dots at the front of the
+   bar. Two full icon SVGs swap via [hidden] rather than one path morphing --
+   simpler to keep crisp at this size than animating a path's `d`. */
+.mute-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+.mute-btn:hover { color: var(--cyan); background: rgba(0,240,255,.1); }
+.mute-btn svg { width: 15px; height: 15px; }
+.mute-btn[aria-pressed="true"] { color: #ff5a7a; }
+.mute-btn[aria-pressed="true"]:hover { background: rgba(255,90,122,.12); }
+
 .chrome-title {
   margin-left: 10px;
   font-family: var(--mono);

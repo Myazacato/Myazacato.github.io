@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=31">
+<link rel="stylesheet" href="style.css?v=32">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -68,8 +68,28 @@
     <div class="game-frame">
       <div class="game-chrome">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <!-- Music starts on Start Run and stops when the results screen shows
+             (see start()/finish() in demo.js). Muted state is remembered
+             across visits via localStorage. -->
+        <button id="mute-btn" class="mute-btn" type="button"
+                aria-pressed="false" aria-label="Mute music">
+          <svg class="icon-sound" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor"/>
+            <path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="currentColor" stroke-width="1.6"
+                  fill="none" stroke-linecap="round"/>
+            <path d="M19 6a9 9 0 0 1 0 12" stroke="currentColor" stroke-width="1.6"
+                  fill="none" stroke-linecap="round" opacity=".6"/>
+          </svg>
+          <svg class="icon-muted" viewBox="0 0 24 24" aria-hidden="true" hidden>
+            <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor"/>
+            <path d="M16 9l5 6M21 9l-5 6" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round"/>
+          </svg>
+        </button>
         <span class="chrome-title">STARPORT CONTROL &mdash; OPEN RUN</span>
       </div>
+
+      <audio id="bgm" src="assets/audio/valkyries.mp3" preload="none" loop></audio>
 
       <div class="game-stage" data-state="intro">
 
@@ -310,7 +330,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=31"></script>
-<script src="demo.js?v=31"></script>
+<script src="site.js?v=32"></script>
+<script src="demo.js?v=32"></script>
 </body>
 </html>

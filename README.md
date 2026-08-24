@@ -111,3 +111,12 @@ the Godot 4 project (private repo).
 The speed curve, chunk spawner, cargo-damage values and delivery-grade
 thresholds are taken from the real game so the feel carries over. It is a
 separate implementation, not an export of the Godot build.
+
+### Music
+
+`assets/audio/valkyries.mp3` plays from Start Run to the results screen (a
+mute toggle sits in the game's title bar, and the choice persists across
+visits). Sourced from a royalty-free/CC-licensed library — if that source's
+terms require an on-page credit, add it here:
+
+> _(attribution — track name / library / license — goes here)_
