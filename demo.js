@@ -97,7 +97,7 @@
 
   // How long a pad plays its bounce for after being struck. Each pad keeps its
   // own timer, so one springing does not set the whole lane wobbling.
-  const PAD_ANIM = 0.2;      // twice as fast as it was
+  const PAD_ANIM = 0.1;      // snappy: the bounce should read as a kick
 
   /* -------------------------------- fan ----------------------------------
      A floor-mounted updraught. Stand in the column and it lifts you — gently,
@@ -289,87 +289,73 @@
      tempting detour — same rule as the coins. Two or three per chunk, so the
      tank is topped up by flying the pattern well rather than by luck. */
 
+  /* Pickups are now hearts only, and rare. Coins and canisters both came out:
+     the lane was so thick with them that flying became hoovering, and with a
+     canister every couple of seconds fuel stopped being a resource at all.
+
+     A tank is now the whole run. That turns the question from "where is the
+     next canister" into "how much of this climb can I afford", which is the
+     decision the flight model was built around in the first place.
+
+     `ang` on a zapper is its tilt in degrees; `spin` makes it rotate. */
+
   const CHUNKS = [
-    { name: 'coin_arc', difficulty: 0, length: 640, entries: [
-      { dx:   0, y: 420, t: 'coin' }, { dx:  70, y: 370, t: 'coin' },
-      { dx: 140, y: 320, t: 'coin' }, { dx: 210, y: 285, t: 'coin' },
-      { dx: 280, y: 270, t: 'coin' }, { dx: 350, y: 285, t: 'coin' },
-      { dx: 420, y: 320, t: 'coin' }, { dx: 490, y: 370, t: 'coin' },
-      { dx: 560, y: 420, t: 'coin' },
-      { dx: 280, y: 170, t: 'fuel' }, { dx: 140, y: 210, t: 'fuel' },
-      { dx:  90, y: 468, t: 'tramp' }, { dx: 470, y: 468, t: 'tramp' },
-      { dx: 420, y: 210, t: 'fuel' }, { dx:  70, y: 300, t: 'fuel' },
-      { dx: 490, y: 300, t: 'fuel' }, { dx: 350, y: 175, t: 'fuel' },
+    { name: 'open_gate', difficulty: 0, length: 620, entries: [
+      { dx:  90, y: 468, t: 'tramp' },
+      { dx: 470, y: 468, t: 'tramp' },
     ]},
-    { name: 'refuel_lane', difficulty: 0, length: 620, entries: [
-      { dx:   0, y: 300, t: 'fuel' }, { dx: 200, y: 250, t: 'fuel' },
-      { dx: 400, y: 200, t: 'fuel' }, { dx: 560, y: 250, t: 'fuel' },
-      { dx: 100, y: 180, t: 'fuel' }, { dx: 300, y: 150, t: 'fuel' },
-      { dx: 240, y: 470, t: 'fan' }, { dx: 520, y: 468, t: 'tramp' },
-      { dx: 480, y: 320, t: 'fuel' },
-      { dx: 100, y: 380, t: 'coin' },
-      { dx: 300, y: 340, t: 'coin' }, { dx: 500, y: 300, t: 'coin' },
+    { name: 'updraught', difficulty: 0, length: 640, entries: [
+      { dx: 240, y: 470, t: 'fan' },
+      { dx: 560, y: 468, t: 'tramp' },
     ]},
     { name: 'hop_pads', difficulty: 1, length: 700, entries: [
-      { dx:   0, y: 468, t: 'tramp' }, { dx:  60, y: 330, t: 'coin' },
-      { dx: 120, y: 260, t: 'coin' },  { dx: 260, y: 468, t: 'tramp' },
-      { dx: 320, y: 330, t: 'coin' },  { dx: 380, y: 260, t: 'coin' },
-      { dx: 520, y: 468, t: 'tramp' }, { dx: 300, y: 150, t: 'ball' },
-      // At the apex of each bounce, so a good hop pays for itself.
-      { dx: 170, y: 205, t: 'fuel' }, { dx: 430, y: 205, t: 'fuel' },
-      { dx: 580, y: 320, t: 'fuel' }, { dx:  60, y: 400, t: 'fuel' },
-      { dx: 330, y: 400, t: 'fuel' }, { dx: 620, y: 230, t: 'fuel' },
+      { dx:   0, y: 468, t: 'tramp' },
+      { dx: 260, y: 468, t: 'tramp' },
+      { dx: 520, y: 468, t: 'tramp' },
+      { dx: 300, y: 150, t: 'ball' },
     ]},
     { name: 'low_road', difficulty: 1, length: 660, entries: [
-      { dx: 120, y: 170, t: 'zapper_h' }, { dx: 380, y: 200, t: 'zapper_m' },
-      { dx: 100, y: 400, t: 'coin' }, { dx: 180, y: 400, t: 'coin' },
-      { dx: 260, y: 400, t: 'coin' }, { dx: 340, y: 400, t: 'coin' },
-      { dx: 420, y: 400, t: 'coin' },
-      { dx:  40, y: 400, t: 'fuel' }, { dx: 500, y: 400, t: 'fuel' },
-      { dx: 240, y: 448, t: 'fuel' }, { dx: 140, y: 448, t: 'fuel' },
-      { dx: 340, y: 448, t: 'fuel' }, { dx: 600, y: 400, t: 'fuel' },
+      { dx: 120, y: 170, t: 'zapper_h' },
+      { dx: 420, y: 200, t: 'zapper_m' },
+      { dx: 240, y: 448, t: 'life' },
     ]},
     { name: 'high_road', difficulty: 1, length: 660, entries: [
-      { dx: 120, y: 400, t: 'zapper_h' }, { dx: 380, y: 360, t: 'zapper_m' },
-      { dx: 100, y: 160, t: 'coin' }, { dx: 180, y: 160, t: 'coin' },
-      { dx: 260, y: 160, t: 'coin' }, { dx: 340, y: 160, t: 'coin' },
-      { dx: 420, y: 160, t: 'coin' },
-      { dx:  40, y: 160, t: 'fuel' }, { dx: 500, y: 160, t: 'fuel' },
-      { dx: 240, y: 108, t: 'fuel' }, { dx: 140, y: 215, t: 'fuel' },
-      { dx: 340, y: 215, t: 'fuel' }, { dx: 600, y: 160, t: 'fuel' },
+      { dx: 120, y: 400, t: 'zapper_h' },
+      { dx: 420, y: 360, t: 'zapper_m' },
+      { dx: 600, y: 470, t: 'fan' },
     ]},
     { name: 'pillar_gate', difficulty: 2, length: 720, entries: [
-      { dx:   0, y: 120, t: 'zapper_v' }, { dx: 240, y: 400, t: 'zapper_v' },
-      { dx: 480, y: 120, t: 'zapper_v' },
-      { dx: 120, y: 300, t: 'coin' }, { dx: 360, y: 240, t: 'coin' },
-      { dx: 600, y: 300, t: 'coin' }, { dx: 240, y: 170, t: 'ball' },
-      // In the gaps between pillars, where you have to weave anyway.
-      { dx: 120, y: 380, t: 'fuel' }, { dx: 360, y: 160, t: 'fuel' },
-      { dx: 660, y: 470, t: 'fan' },
-      { dx: 600, y: 180, t: 'fuel' }, { dx:  60, y: 300, t: 'fuel' },
-      { dx: 300, y: 240, t: 'fuel' }, { dx: 540, y: 300, t: 'fuel' },
+      { dx:   0, y: 130, t: 'zapper_v' },
+      { dx: 260, y: 400, t: 'zapper_v' },
+      { dx: 520, y: 130, t: 'zapper_v' },
+      { dx: 640, y: 470, t: 'fan' },
     ]},
     { name: 'the_pinch', difficulty: 2, length: 700, entries: [
-      { dx: 100, y: 140, t: 'zapper_h' }, { dx: 100, y: 430, t: 'zapper_h' },
-      { dx: 420, y: 140, t: 'zapper_h' }, { dx: 420, y: 430, t: 'zapper_h' },
-      { dx: 200, y: 290, t: 'coin' }, { dx: 280, y: 290, t: 'coin' },
-      { dx: 520, y: 290, t: 'coin' },
-      // Dead centre of each pinch — the only safe line through is also the
-      // one that refuels you.
-      { dx: 100, y: 290, t: 'fuel' }, { dx: 420, y: 290, t: 'fuel' },
-      { dx: 600, y: 290, t: 'fuel' }, { dx: 240, y: 240, t: 'fuel' },
-      { dx: 240, y: 345, t: 'fuel' }, { dx: 560, y: 240, t: 'fuel' },
+      { dx: 110, y: 140, t: 'zapper_h' },
+      { dx: 110, y: 430, t: 'zapper_h' },
+      { dx: 440, y: 140, t: 'zapper_h' },
+      { dx: 440, y: 430, t: 'zapper_h' },
+      { dx: 620, y: 290, t: 'life' },
+    ]},
+    { name: 'slant', difficulty: 2, length: 700, entries: [
+      // Angled beams: the gap is a diagonal, so the line through is a climb
+      // rather than a hold.
+      { dx: 120, y: 200, t: 'zapper_a', ang:  34 },
+      { dx: 400, y: 350, t: 'zapper_a', ang: -34 },
+      { dx: 640, y: 468, t: 'tramp' },
+    ]},
+    { name: 'mill', difficulty: 2, length: 720, entries: [
+      // Spinners. Slow enough to read, fast enough that the gap moves while
+      // you commit to it.
+      { dx: 180, y: 300, t: 'zapper_s', spin: 1.1 },
+      { dx: 520, y: 220, t: 'zapper_s', spin: -0.85 },
+      { dx: 660, y: 470, t: 'fan' },
     ]},
     { name: 'greed_shelf', difficulty: 2, length: 680, entries: [
-      { dx: 150, y: 300, t: 'zapper_h' }, { dx: 430, y: 290, t: 'zapper_m' },
-      // The good money sits behind the beams. That is the bait.
-      { dx: 150, y: 130, t: 'coin' }, { dx: 230, y: 120, t: 'coin' },
-      { dx: 310, y: 115, t: 'coin' }, { dx: 390, y: 120, t: 'coin' },
-      { dx: 470, y: 130, t: 'coin' }, { dx: 310, y: 175, t: 'ball' },
-      // Fuel on the safe road below, so taking the greedy line costs you range.
-      { dx: 300, y: 430, t: 'fuel' }, { dx:  40, y: 430, t: 'fuel' },
-      { dx: 560, y: 430, t: 'fuel' }, { dx: 180, y: 430, t: 'fuel' },
-      { dx: 440, y: 430, t: 'fuel' }, { dx: 640, y: 380, t: 'fuel' },
+      { dx: 160, y: 300, t: 'zapper_h' },
+      { dx: 460, y: 290, t: 'zapper_m' },
+      { dx: 300, y: 120, t: 'life' },
+      { dx: 620, y: 468, t: 'tramp' },
     ]},
   ];
 
@@ -415,6 +401,11 @@
       "Still flying. Genuinely surprised.",
       "This is the furthest anyone's got today.",
       "The boss just asked who's flying. I said nobody.",
+    ],
+    life: [
+      "Spare crate. Patch the cargo with it.",
+      "That's a repair. You've earned exactly one mistake back.",
+      "Cargo's looking less awful. Don't get comfortable.",
     ],
     shield: [
       "Bubble's up. That buys you exactly one mistake.",
@@ -576,8 +567,8 @@
 
      Spaced on distance like the chunks, but far sparser: up here the reward
      is the altitude itself, and a dense field would just punish the climb. */
-  const SKY_FROM     = 200;    // altitude at which the upper air wakes up
-  const SKY_INTERVAL = 520;    // px of travel between sky spawns
+  const SKY_FROM     = 140;    // altitude at which the upper air wakes up
+  const SKY_INTERVAL = 300;    // px of travel between sky spawns
 
   function maybeSpawnSky() {
     const altitude = FLOOR - S.planeY;
@@ -587,18 +578,29 @@
 
     // Placed around HER altitude, not a fixed band, so it keeps finding her
     // however high she goes.
-    const band = S.planeY + (Math.random() - 0.5) * 260;
+    let band = S.planeY + (Math.random() - 0.5) * 260;
+    // Nudge off anything already occupying that slot; give up rather than
+    // force a spawn, since a skipped hazard is invisible and a stacked one
+    // is unreadable.
+    let tries = 0;
+    while (!spaceIsFree(SPAWN_X, band, 95) && tries++ < 6) {
+      band = S.planeY + (Math.random() - 0.5) * 300;
+    }
+    if (tries >= 6) return;
     const roll = Math.random();
 
-    if (roll < 0.45) {
+    if (roll < 0.34) {
       spawnEntry(SPAWN_X, band, 'zapper_m');
-    } else if (roll < 0.7) {
-      spawnEntry(SPAWN_X, band, 'zapper_h');
+    } else if (roll < 0.55) {
+      spawnEntry(SPAWN_X, band, 'zapper_a', { ang: (Math.random() * 70 - 35) });
+    } else if (roll < 0.74) {
+      spawnEntry(SPAWN_X, band, 'zapper_s', { spin: (Math.random() * 1.6 - 0.8) || 0.9 });
     } else if (roll < 0.88) {
-      // A little payoff for being up here at all.
-      for (let i = 0; i < 4; i++) spawnEntry(SPAWN_X + i * 62, band - i * 14, 'coin');
+      spawnEntry(SPAWN_X, band, 'zapper_h');
+    } else if (roll < 0.96) {
+      spawnEntry(SPAWN_X, band, 'ball');
     } else {
-      spawnEntry(SPAWN_X, band, 'fuel');
+      spawnEntry(SPAWN_X, band, 'life');
     }
   }
   function maybeSpawnChunk() {
@@ -616,12 +618,37 @@
       else S.chunksSinceBreather++;
     }
 
-    for (const e of chunk.entries) spawnEntry(SPAWN_X + e.dx, e.y, e.t);
+    for (const e of chunk.entries) spawnEntry(SPAWN_X + e.dx, e.y, e.t, e);
     S.nextChunkAt = S.scrolled + chunk.length + CHUNK_GAP_PIXELS;
   }
 
-  function spawnEntry(x, y, t) {
+  /* Rough on-screen radius of a thing, used only to keep spawns apart. Beams
+     are long, so they claim a wide box; pickups claim their own circle. */
+  function claimRadius(e) {
+    if (e.w) return Math.max(e.w, e.h) / 2;
+    return (e.r || 16) + 10;
+  }
+
+  /* Refuses a spawn that would land on top of something already in the lane.
+     Without this the sky spawner, which places relative to the player, kept
+     dropping beams through pickups and stacking two hazards into one
+     unreadable blob. */
+  function spaceIsFree(x, y, want) {
+    for (const o of S.ents) {
+      if (o.dead) continue;
+      const need = want + claimRadius(o);
+      if (Math.abs(o.x - x) < need && Math.abs(o.y - y) < need) return false;
+    }
+    return true;
+  }
+  function spawnEntry(x, y, t, opts) {
     switch (t) {
+      case 'life':     S.ents.push({ t, x, y, r: 20, dead: false }); break;
+      case 'zapper_a': S.ents.push({ t, x, y, ang: (opts && opts.ang || 30) * Math.PI / 180,
+                                     w: 168, h: 13, dead: false }); break;
+      case 'zapper_s': S.ents.push({ t, x, y, ang: Math.random() * 3.14,
+                                     spinRate: (opts && opts.spin) || 1,
+                                     w: 168, h: 13, dead: false }); break;
       case 'coin':     S.ents.push({ t, x, y, r: 11, spin: Math.random() * 6.28, dead: false }); break;
       // r scales with the icon so what you see stays what you can grab.
       case 'fuel':     S.ents.push({ t, x, y, r: 19, dead: false }); break;
@@ -830,6 +857,15 @@
           S.score += SEED_POINTS;
           burst(e.x, e.y, '#ffd75c', 6);
         }
+      } else if (e.t === 'life') {
+        if (Math.hypot(e.x - px, e.y - S.planeY) < e.r + pr) {
+          e.dead = true;
+          // Restores exactly one heart. Rare enough that it is a rescue rather
+          // than a top-up, which is what makes finding one feel like anything.
+          S.cargo = Math.min(CARGO_MAX, S.cargo + CARGO_MAX / HEARTS);
+          burst(e.x, e.y, '#ff5a7a', 14);
+          say('life', { force: true });
+        }
       } else if (e.t === 'ball') {
         if (Math.hypot(e.x - px, e.y - S.planeY) < e.r + pr) {
           e.dead = true;
@@ -850,7 +886,8 @@
           e.animT = PAD_ANIM;          // this pad springs; the others stay put
           burst(e.x, e.y, '#a78bfa', 10);
         }
-      } else if (e.t === 'zapper_h' || e.t === 'zapper_v' || e.t === 'zapper_m') {
+      } else if (e.t.indexOf('zapper') === 0) {
+        if (e.t === 'zapper_s') e.ang += e.spinRate * dt;
         // Patrolling zappers ride a sine around where they were authored, so
         // the chunk still reads as designed — the beam just sweeps the gap.
         if (e.t === 'zapper_m') e.y = e.baseY + Math.sin(S.t * e.rate + e.phase) * e.range;
@@ -888,11 +925,20 @@
     S.flash = Math.max(0, S.flash - dt * 2.2);
   }
 
+  /* Circle vs rectangle, and now vs a ROTATED rectangle. Rather than write a
+     separate test, the plane is rotated into the beam's own frame — the same
+     maths as the axis-aligned case once you are in local space. */
   function hitsRect(px, py, pr, e) {
+    let lx = px - e.x, ly = py - e.y;
+    if (e.ang) {
+      const c = Math.cos(-e.ang), s = Math.sin(-e.ang);
+      const rx = lx * c - ly * s, ry = lx * s + ly * c;
+      lx = rx; ly = ry;
+    }
     const hw = e.w / 2, hh = e.h / 2;
-    const cx = Math.max(e.x - hw, Math.min(px, e.x + hw));
-    const cy = Math.max(e.y - hh, Math.min(py, e.y + hh));
-    return Math.hypot(px - cx, py - cy) < pr;
+    const cx = Math.max(-hw, Math.min(lx, hw));
+    const cy = Math.max(-hh, Math.min(ly, hh));
+    return Math.hypot(lx - cx, ly - cy) < pr;
   }
 
   function burst(x, y, c, n) {
@@ -1030,6 +1076,23 @@
         });
         break;
       }
+      case 'life': {
+        // A pickup heart, same shape as the HUD hearts so the connection is
+        // instant — you do not have to be told what it does.
+        const bob = Math.sin(S.t * 3.2 + e.x * 0.01) * 4;
+        const y = e.y + bob;
+        const r = e.r * 0.82;
+        glow('#ff5a7a', 16, () => {
+          ctx.fillStyle = '#ff5a7a';
+          ctx.beginPath();
+          ctx.moveTo(e.x, y + r * 0.85);
+          ctx.bezierCurveTo(e.x - r * 1.5, y - r * 0.35, e.x - r * 0.55, y - r * 1.15, e.x, y - r * 0.35);
+          ctx.bezierCurveTo(e.x + r * 0.55, y - r * 1.15, e.x + r * 1.5, y - r * 0.35, e.x, y + r * 0.85);
+          ctx.closePath();
+          ctx.fill();
+        });
+        break;
+      }
       case 'ball': {
         // Bobs gently so it reads as a pickup rather than scenery.
         const bob = Math.sin(S.t * 3 + e.x * 0.01) * 4;
@@ -1096,6 +1159,10 @@
         /* A ray rather than a bar: three stacked beams, each narrower and
            hotter than the last, ending in a near-white core. The flicker mixes
            two rates so it crackles instead of throbbing. */
+        // Angled and spinning beams draw in their own rotated frame, which is
+        // the same frame hitsRect tests in — so what you see is what hits you.
+        ctx.save();
+        if (e.ang) { ctx.translate(e.x, e.y); ctx.rotate(e.ang); ctx.translate(-e.x, -e.y); }
         const flick = 0.78 + Math.sin(S.t * 27) * 0.14 + Math.sin(S.t * 9) * 0.08;
         const horiz = e.t !== 'zapper_v';   // zapper_m patrols but stays horizontal
         const len = horiz ? e.w : e.h;
@@ -1127,6 +1194,7 @@
           ctx.fillRect(e.x - 13, e.y + len / 2 - 2, 26, 10);
         }
         ctx.restore();
+        ctx.restore();   // closes the rotated frame opened above
         break;
       }
     }

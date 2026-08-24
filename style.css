@@ -933,3 +933,62 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
 .cap-portrait { order: 2; }
 /* Tail points down at the cat now that the bubble sits above her. */
 .cap-bubble::before { top: auto; bottom: -6px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
+/* ---- copilot panel, matching the reference ----
+   An outer cyan-edged box holding a speech bubble above a framed portrait.
+   The name/role labels are dropped: the reference has neither, and the cat
+   plus her line already say who is talking. */
+.captain {
+  order: 2;
+  border: 0;
+  background: transparent;
+  padding: 14px 12px;
+  justify-content: flex-end;
+  gap: 0;
+}
+.cap-name, .cap-role { display: none; }
+
+.cap-bubble {
+  order: -1;
+  flex: 0 0 auto;
+  min-height: 0;
+  width: 100%;
+  margin-bottom: 14px;
+  background: rgba(9,12,26,.72);
+  border: 1.4px solid rgba(0,240,255,.5);
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(0,240,255,.18);
+  padding: 12px 13px;
+}
+.cap-bubble p { color: var(--cyan); font-size: 11.5px; }
+/* Tail hangs off the bottom-right, pointing down at her. */
+.cap-bubble::before {
+  top: auto; left: auto;
+  right: 20px; bottom: -7px;
+  margin: 0;
+  width: 11px; height: 11px;
+  background: rgba(9,12,26,.95);
+  border: 0;
+  border-right: 1.4px solid rgba(0,240,255,.5);
+  border-bottom: 1.4px solid rgba(0,240,255,.5);
+  transform: rotate(45deg);
+}
+
+.cap-portrait {
+  order: 2;
+  --cap: 96px;
+  width: 100%;
+  height: 104px;
+  background-color: #0b1430;
+  background-position: center;
+  background-size: contain;
+  border: 1.4px solid rgba(0,240,255,.5);
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(0,240,255,.18);
+}
+/* A single frame at rest; the strip only steps while she is speaking, and the
+   sheet is three frames wide so `contain` has to be overridden per-frame. */
+.cap-portrait { background-size: 300% auto; }
+@media (max-width: 820px) {
+  .cap-portrait { height: 64px; }
+}
