@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=87">
+<link rel="stylesheet" href="style.css?v=103">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -25,6 +25,7 @@
   <nav>
     <a href="#play">Play</a>
     <a href="#games">Games</a>
+    <a href="#cases">Cases</a>
     <a href="#contact">Contact</a>
   </nav>
 </header>
@@ -43,7 +44,7 @@
       </p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#play">Play in your browser</a>
-        <a class="btn" href="#games">See the work</a>
+        <a class="btn" href="#cases">See the work</a>
       </div>
       <ul class="hero-links">
         <li><a href="https://github.com/Myazacato">GitHub</a></li>
@@ -115,8 +116,6 @@
           <canvas id="game" width="960" height="540" aria-label="Playable flight demo"></canvas>
           <!-- Title-screen dressing: a snapshot of the crew, held in frame. -->
           <img class="title-photo" src="assets/game/polaroid.png" alt="" aria-hidden="true">
-          <!-- Results-screen dressing: same corner as the title photo. -->
-          <img class="end-photo" src="assets/game/end-photo.png" alt="" aria-hidden="true">
           <div id="overlay" class="overlay">
             <div class="overlay-inner">
               <h3 id="ov-title">DIANA</h3>
@@ -136,10 +135,8 @@
       </div>
     </div>
     <p class="fineprint">
-      Built from scratch for this page &mdash; same speed curve, chunk spawner and
-      cargo-damage values as the Godot build, condensed into one file. High
-      scores are saved in your own browser. Music: Wagner's
-      <em>Ride of the Valkyries</em>, conducted by Philip Milman, from
+      Music: Wagner's <em>Ride of the Valkyries</em>, conducted by Philip
+      Milman, from
       <a href="https://www.classicals.de/wagner-valkyrie">classicals.de</a>
       (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY</a>).
     </p>
@@ -281,12 +278,357 @@
              <a class="btn" href="https://github.com/Myazacato/space-dog">Source on GitHub</a> -->
       </div>
     </article>
+
+    <article class="case">
+      <div class="case-head">
+        <div>
+          <h3>Entrela&ccedil;os</h3>
+          <p class="case-tag">A calm, culturally-native puzzle game for Brazil &middot; Product Designer (solo) &middot; 1 month</p>
+        </div>
+        <ul class="stack">
+          <li>Figma</li>
+          <li>Google AI Studio</li>
+          <li>Google Play</li>
+        </ul>
+      </div>
+
+      <p class="case-lede">
+        Brazil is the largest mobile gaming market in Latin America and an
+        Android-first country &mdash; over 80% platform share. Yet its players
+        (70% self-identified &ldquo;casual&rdquo;) are stuck between culturally
+        distant NYT-style puzzles and loud, ad-stuffed clones machine-translated
+        into generic PT-PT. I saw a gap: a quiet, locally-fluent word game built
+        for the <em>micro-moment</em> &mdash; the two minutes in a queue, the
+        morning coffee &mdash; as players pivot away from doomscrolling toward
+        calmer play.
+      </p>
+
+      <h4>The craft &mdash; a &ldquo;low-dopamine&rdquo; design language</h4>
+      <p>
+        Every visual decision was made to be the opposite of slot-machine
+        gaming UI. I chose <strong>neobrutalist minimalism</strong>: high
+        contrast, low saturation, raw borders, honest typography. No glossy
+        bubbles, no neon, no confetti. The interface gets out of the way so
+        the only thing lighting up is the player&rsquo;s own logic.
+      </p>
+
+      <h4>Killing the wireframe</h4>
+      <p>
+        Instead of weeks in Figma auto-layout, I prototyped functionally with
+        AI-assisted coding in Google AI Studio. Logic games live or die on
+        feel, so I needed to play them, not look at them &mdash; testing
+        whether a &ldquo;snap&rdquo; felt rewarding, whether the haptics were
+        too aggressive for a calm game, and hand-tuning difficulty across 21
+        levels to find the flow state between boredom and anxiety.
+      </p>
+
+      <h4>Testing that changed the product</h4>
+      <p>
+        Five Brazilian puzzle players, tracked for emotional resonance rather
+        than pass/fail:
+      </p>
+      <div class="cards">
+        <div class="card">
+          <span class="card-tag">CATEGORIES</span>
+          <h5>&ldquo;Americanized&rdquo; references</h5>
+          <p>
+            Rebuilt around Brazilian slang, regional food and pop culture to
+            trigger real <em>aha</em> moments.
+          </p>
+        </div>
+        <div class="card">
+          <span class="card-tag">DIFFICULTY</span>
+          <h5>Early levels felt mindless</h5>
+          <p>Solved too fast &mdash; recalibrated toward non-obvious connections.</p>
+        </div>
+        <div class="card">
+          <span class="card-tag">FLOW</span>
+          <h5>Stuck players got frustrated</h5>
+          <p>
+            Added a shame-free <em>Reveal</em> escape hatch to protect flow,
+            with no &ldquo;Game Over&rdquo; wall.
+          </p>
+        </div>
+        <div class="card">
+          <span class="card-tag">ONBOARDING</span>
+          <h5>The UI hid its own entry point</h5>
+          <p>A silent onboarding using motion cues instead of text.</p>
+        </div>
+      </div>
+
+      <h4>Motion &amp; the web build</h4>
+      <p>
+        The game is playable directly in the browser &mdash; I designed the
+        web experience around it, so anyone can start in one click with no
+        install. Motion does real work throughout: a satisfying snap when
+        four words lock into a group, smooth reveal transitions as each
+        category resolves, and soft feedback states for near-misses and wrong
+        guesses &mdash; tuned to reward the solve without overstimulating,
+        true to the low-dopamine goal.
+      </p>
+
+      <h4>Outcome &amp; north star</h4>
+      <p>
+        Live on Google Play (publisher: Myaza) and playable on the web. The
+        core success signal is <strong>session completion rate</strong> &mdash;
+        is the game becoming a quiet daily ritual rather than another
+        notification? This project marks how I work now: when AI turns the
+        <em>how</em> of building into a commodity, the designer&rsquo;s value
+        moves to the <em>what</em> and the <em>why</em> &mdash; the feel of
+        the interaction and respect for the player&rsquo;s time.
+      </p>
+    </article>
+  </section>
+
+  <!-- ============ CASES ============ -->
+  <section id="cases" class="section">
+    <div class="section-head">
+      <span class="num">03</span>
+      <h2>Cases</h2>
+      <p class="section-sub">
+        Product &amp; visual design at the intersection of games, brand, and craft.
+      </p>
+    </div>
+
+    <!-- Fixed to the viewport, not the section — only shown while a case
+         article is actually on screen (see the IntersectionObserver in
+         site.js). Each dot's label is hidden until hovered/focused, so it
+         reads as a quiet rail rather than a second, competing menu. -->
+    <nav class="case-dots" aria-label="Jump to a case study">
+      <a href="#case-pixel-party" class="case-dot" data-case="case-pixel-party">
+        <span class="dot-mark"></span><span class="dot-label">Pixel Party</span>
+      </a>
+      <a href="#case-cloudya" class="case-dot" data-case="case-cloudya">
+        <span class="dot-mark"></span><span class="dot-label">Cloudya Onboarding</span>
+      </a>
+      <a href="#case-nia" class="case-dot" data-case="case-nia">
+        <span class="dot-mark"></span><span class="dot-label">Nia</span>
+      </a>
+      <a href="#case-uds" class="case-dot" data-case="case-uds">
+        <span class="dot-mark"></span><span class="dot-label">Unified Design System</span>
+      </a>
+    </nav>
+
+    <article class="case" id="case-pixel-party">
+      <div class="case-head">
+        <div>
+          <h3>Pixel Party</h3>
+          <p class="case-tag">Looking-for-players, without the toxicity &middot; Product Design &middot; 2 months</p>
+        </div>
+        <ul class="stack">
+          <li>Figma</li>
+        </ul>
+      </div>
+
+      <p class="case-lede">
+        Finding people to play with online is easy; finding the
+        <em>right</em> people isn&rsquo;t &mdash; research shows over 80% of
+        matches carry verbal abuse (Polygon). Pixel Party is a cross-platform
+        LFP tool that lets gamers spin up a session &mdash; casual co-op,
+        ranked, or an in-person board-game night &mdash; in minutes, without
+        the endless group-chat back-and-forth.
+      </p>
+
+      <h4>Visual language</h4>
+      <p>
+        I pulled cues straight from gaming interfaces: bold colour contrast,
+        clean typography for fast readability, and subtle motion to make the
+        flow feel alive. Microcopy was rewritten to be short, active and
+        game-friendly &mdash; the product should feel like starting a match,
+        not filling out a form.
+      </p>
+
+      <h4>The flow, stripped to its core</h4>
+      <p>
+        Rapid low-fidelity wireframes, then live user testing, then
+        high-fidelity. Watching players interact pointed hard at one thing:
+        speed.
+      </p>
+      <ul>
+        <li>Event creation in just a few steps.</li>
+        <li>
+          Game and platform selection that feels instant &mdash; pre-filled
+          suggestions, meeting communities where they already are (Discord,
+          Reddit).
+        </li>
+        <li>One-tap RSVP, no app download, with an optional &ldquo;Add to Calendar.&rdquo;</li>
+      </ul>
+
+      <h4>Personas that anchored the decisions</h4>
+      <p>
+        The Competitive Connector, the Social Explorer and the Event Host
+        &mdash; each with a different tolerance for friction, which is
+        exactly what a polished onboarding had to absorb.
+      </p>
+
+      <h4>Outcome</h4>
+      <p>
+        A validated high-fidelity concept with a clear success model &mdash;
+        DAU/MAU stickiness, event engagement (reactions, replies, RSVPs), and
+        polls created. The visual and interaction system leaves a clean
+        runway for tournaments and recurring events.
+      </p>
+    </article>
+
+    <article class="case" id="case-cloudya">
+      <div class="case-head">
+        <div>
+          <h3>Cloudya Onboarding</h3>
+          <p class="case-tag">Teaching a dense product to feel effortless, through motion &middot; Product Designer &middot; NFON (Cloudya)</p>
+        </div>
+        <ul class="stack">
+          <li>Figma (Smart Animate)</li>
+          <li>Lottie</li>
+          <li>Rive</li>
+        </ul>
+      </div>
+
+      <p class="case-lede">
+        Cloudya is a feature-dense B2B communications product, and first-run
+        is where dense products lose people. New users landed in a powerful
+        but unfamiliar interface with too much to absorb at once. I designed
+        an onboarding system that guides people to their first meaningful
+        action &mdash; using motion to carry attention instead of walls of
+        tooltip text.
+      </p>
+
+      <h4>Motion as guidance, not decoration</h4>
+      <ul>
+        <li>
+          Built lightweight, performant animations in <strong>Lottie</strong>
+          and <strong>Rive</strong> that ship to production &mdash; motion
+          that runs live in the real product, not just a prototype reel.
+        </li>
+        <li>
+          Prototyped and timed interactions in <strong>Figma Smart
+          Animate</strong> to nail pacing and easing before developer
+          handoff.
+        </li>
+        <li>
+          Used staged reveals that direct the eye one step at a time, cutting
+          cognitive load and letting users learn by doing rather than
+          reading.
+        </li>
+      </ul>
+
+      <h4>Impact</h4>
+      <p>Reduced first-run confusion and made the product feel approachable from the first screen.</p>
+
+      <h4>Why it matters here</h4>
+      <p>
+        This is production motion design &mdash; the same craft behind good
+        landing-page and campaign micro-interactions &mdash; tuned for
+        clarity and performance, not just polish.
+      </p>
+    </article>
+
+    <article class="case" id="case-nia">
+      <div class="case-head">
+        <div>
+          <h3>Nia</h3>
+          <p class="case-tag">An AI assistant, designed to feel human &middot; Product Designer &middot; NFON (Cloudya) &middot; 3 months</p>
+        </div>
+        <ul class="stack">
+          <li>Figma</li>
+          <li>DaisyUI</li>
+        </ul>
+      </div>
+
+      <p class="case-lede">
+        NFON&rsquo;s move toward AI started with a customer-facing chatbot:
+        answer product and sales questions in minutes, not hours. I mapped
+        the support journey to find where fragmented information and
+        repetitive questions cost the most time &mdash; then designed Nia to
+        be the confident frontline, embedded across the web app and site.
+      </p>
+
+      <h4>Design &amp; craft decisions</h4>
+      <div class="cards">
+        <div class="card">
+          <span class="card-tag">SYSTEM</span>
+          <h5>One library, native feel everywhere</h5>
+          <p>
+            With a developer, I built a single component library on DaisyUI,
+            with native iOS adjustments so the widget felt at home on every
+            surface.
+          </p>
+        </div>
+        <div class="card">
+          <span class="card-tag">VOICE</span>
+          <h5>Tone as a design material</h5>
+          <p>
+            Nia started robotic &mdash; &ldquo;Sorry, I can&rsquo;t answer
+            that,&rdquo; a dead end. Loosening the guardrails toward a
+            warmer, more natural voice measurably lifted satisfaction scores.
+          </p>
+        </div>
+        <div class="card">
+          <span class="card-tag">RECOVERY</span>
+          <h5>No dead ends</h5>
+          <p>
+            Recovery paths &mdash; clarifying questions, docs, human
+            escalation &mdash; so the conversation always had a next step.
+          </p>
+        </div>
+        <div class="card">
+          <span class="card-tag">CLARITY</span>
+          <h5>Visual guidance</h5>
+          <p>Step-by-step instructions paired with visuals on complex answers.</p>
+        </div>
+        <div class="card">
+          <span class="card-tag">TIMING</span>
+          <h5>Feedback, timed right</h5>
+          <p>
+            NPS triggered after three messages &mdash; enough for the user to
+            have an opinion, early enough not to interrupt.
+          </p>
+        </div>
+      </div>
+
+      <h4>Rollout &amp; impact</h4>
+      <p>
+        We launched internally on Confluence first &mdash; one of the fastest
+        releases in NFON&rsquo;s history &mdash; to validate flows and
+        surface missing documentation before going public. &ldquo;Have you
+        asked Nia?&rdquo; became the office reflex for any question. The
+        result: measurable ticket deflection, resolution time cut from days
+        to minutes, and internal and external docs that improved directly
+        from real usage patterns.
+      </p>
+    </article>
+
+    <article class="case" id="case-uds">
+      <div class="case-head">
+        <div>
+          <h3>Unified Design System</h3>
+          <p class="case-tag">Craft at scale &middot; UI Components &middot; 6 months</p>
+        </div>
+      </div>
+
+      <p class="case-lede">
+        A token-based design system unifying a large legacy ecosystem across
+        web, iOS, Android, and a desktop admin portal &mdash; kicked off in a
+        hackathon with a design-to-AI-to-code workflow.
+      </p>
+      <p>
+        I audited component libraries across every platform, standardised
+        structures alongside developers, and built a deliberately
+        <strong>platform-conscious</strong> system &mdash; not one-size-fits-all
+        &mdash; around four principles: Innovative, Helpful, Seamless,
+        Focused. A partial rollout on one product line delivered improved
+        visual consistency, faster development cycles from reusable
+        components, and a shared language between design and engineering.
+        Honest about scope: not yet company-wide, and Storybook coverage was
+        incomplete &mdash; but it proved the system could adapt under
+        changing constraints.
+      </p>
+    </article>
   </section>
 
   <!-- ============ CONTACT ============ -->
   <section id="contact" class="section contact">
     <div class="section-head">
-      <span class="num">03</span>
+      <span class="num">04</span>
       <h2>Get in touch</h2>
     </div>
     <p class="contact-lede">
@@ -312,7 +654,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=87"></script>
-<script src="demo.js?v=87"></script>
+<script src="site.js?v=103"></script>
+<script src="demo.js?v=103"></script>
 </body>
 </html>

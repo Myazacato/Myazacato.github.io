@@ -547,27 +547,6 @@ main, .topbar, footer { position: relative; z-index: 1; }
   transform: translateY(60%);
 }
 
-/* Results-screen photo, same corner as the title one — they never show at
-   the same time anyway, since they are gated on opposite data-state values. */
-.end-photo {
-  position: absolute;
-  right: 1.5%;
-  bottom: 0;
-  width: 22%;
-  max-width: 170px;
-  height: auto;
-  z-index: 3;
-  pointer-events: none;
-  image-rendering: pixelated;
-  opacity: 0;
-  transform: translateY(60%);
-  transition: opacity .3s ease, transform .35s ease;
-}
-.game-stage[data-state="results"] .end-photo {
-  opacity: 1;
-  transform: translateY(6%);
-}
-
 #game {
   display: block;
   width: 100%;
@@ -626,6 +605,13 @@ kbd {
 }
 
 /* Results readout inside the overlay */
+.death-cause {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-faint);
+  text-align: center;
+  margin: 0 0 14px;
+}
 .result-grid {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -694,6 +680,7 @@ kbd {
   border-radius: var(--r);
   padding: clamp(24px, 4vw, 42px);
 }
+.case + .case { margin-top: 28px; }
 
 .case-head {
   display: flex;
@@ -744,6 +731,10 @@ kbd {
   margin: 32px 0 12px;
 }
 .case > p { color: var(--text-dim); max-width: 68ch; margin: 0; }
+.case > p + p { margin-top: 14px; }
+.case > ul { color: var(--text-dim); max-width: 68ch; margin: 0; padding-left: 20px; }
+.case > ul li { margin-bottom: 6px; }
+.case > ul strong { color: var(--text); font-weight: 500; }
 
 .cards {
   display: grid;
@@ -779,6 +770,53 @@ kbd {
 .card em { color: var(--text); font-style: normal; font-weight: 500; }
 
 .case-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+
+/* Floating rail for jumping between case studies. Fixed to the viewport
+   (not the section) so it stays put while you scroll, but only visible
+   while a case article is actually on screen — see the IntersectionObserver
+   in site.js, which toggles .is-visible and swaps .is-active between dots. */
+.case-dots {
+  position: fixed;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+.case-dots.is-visible { opacity: 1; pointer-events: auto; }
+
+.case-dot { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+
+.dot-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid rgba(0,240,255,.4);
+  flex-shrink: 0;
+  transition: background .2s, border-color .2s, transform .2s;
+}
+.case-dot:hover .dot-mark,
+.case-dot:focus-visible .dot-mark { border-color: var(--cyan); transform: scale(1.3); }
+.case-dot.is-active .dot-mark { background: var(--cyan); border-color: var(--cyan); transform: scale(1.3); }
+
+.dot-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.case-dot:hover .dot-label,
+.case-dot:focus-visible .dot-label { opacity: 1; transform: translateX(0); }
+.case-dot.is-active .dot-label { color: var(--cyan); }
 
 /* =========================== WORK LIST =================================== */
 
@@ -967,6 +1005,9 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
   .cap-altimeter { max-width: 52px; flex: 0 0 52px; }
   .cap-bubble { flex: 1; padding: 8px 11px; }
   .cap-bubble::before { right: auto; left: -6px; top: 50%; bottom: auto; margin-top: -5px; }
+  /* No room for a floating rail on a narrow screen, and hover-reveal labels
+     don't mean much on touch anyway. */
+  .case-dots { display: none; }
 }
 
 @media (max-width: 700px) {

@@ -32,4 +32,32 @@
     // anything else shows the address itself.
     if (el.dataset.email !== 'label') el.textContent = address;
   });
+
+  /* -------------------------- case-study dot nav --------------------------
+     The floating rail next to the Cases section: visible only while a case
+     article is actually on screen, with the dot for whichever one is most in
+     view lit up. One observer does both jobs — the section's own visibility
+     drives .is-visible on the rail, and each article's visibility drives
+     .is-active on its matching dot. */
+
+  const caseDots = document.querySelector('.case-dots');
+  const caseSection = document.getElementById('cases');
+  const caseArticles = document.querySelectorAll('#cases article[id]');
+
+  if (caseDots && caseSection && caseArticles.length && 'IntersectionObserver' in window) {
+    const sectionObserver = new IntersectionObserver(
+      ([entry]) => caseDots.classList.toggle('is-visible', entry.isIntersecting),
+      { rootMargin: '-45% 0px -45% 0px' }
+    );
+    sectionObserver.observe(caseSection);
+
+    const dotFor = (id) => caseDots.querySelector(`[data-case="${id}"]`);
+    const articleObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const dot = dotFor(entry.target.id);
+        if (dot) dot.classList.toggle('is-active', entry.isIntersecting);
+      });
+    }, { rootMargin: '-45% 0px -45% 0px' });
+    caseArticles.forEach((article) => articleObserver.observe(article));
+  }
 })();

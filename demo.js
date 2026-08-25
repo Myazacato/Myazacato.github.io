@@ -207,21 +207,32 @@
      stopped falling entirely. It is time now: how long she has been
      continuously falling, which drops to zero the instant she thrusts or
      starts climbing, so the effect cannot outlast the fall that caused it. */
-  const BIG_FALL_DELAY = 3;     // seconds of continuous falling before it starts
+  const BIG_FALL_DELAY = 2;     // seconds of continuous falling before it starts
   const BIG_FALL_RAMP  = 1.5;   // further seconds to reach full intensity
 
-  /* Death sequence: only plays when cargo hits zero on a genuine fall — a
-     hit taken already near the deck (a hard landing, the ground grind, a
-     low hazard) cuts straight to results the way it always did, since there
-     is no real height to show falling away. Above DEATH_ANIM_MIN_HEIGHT she
-     drops, sinks out of sight behind the deck line, and the same portrait
-     used on the results screen rises up behind it before results takes
-     over. Timings are phases of S.deathT, restarting its clock at each phase
-     change (see beginDeath()/updateDying()). */
-  const DEATH_ANIM_MIN_HEIGHT = 130; // px above the floor needed to trigger the sequence
-  const DEATH_SINK_TIME  = 0.32;     // seconds for her to sink out of sight
-  const DEATH_PEEK_RISE  = 0.42;     // seconds for the portrait to rise into place after
-  const DEATH_HOLD_TOTAL = 1.5;      // total time in the 'sink' phase before results
+  /* Opening beat: a real Start Run begins with her behind the deck line
+     next to the cannon, out of sight, rising into view before it fires her
+     up and to the right — the death sink's clip trick run in reverse, so
+     the same shape (hidden behind the line, then revealed) opens a run and
+     closes one. Attract mode's idle bob never calls update() at all, so it
+     never touches this — see reset()/start(). */
+  const LAUNCH_RISE_TIME = 0.5;    // seconds rising behind the cannon before it fires
+  const LAUNCH_KICK_TIME = 0.8;    // seconds for the sideways kick to settle into her flight station
+  const LAUNCH_VEL        = -1250; // upward impulse the cannon fires her with — stronger than a tramp bounce
+  const LAUNCH_X_KICK     = -50;   // how far left of station she starts, easing back to 0
+  const CANNON_X_OFFSET   = -60;  // cannon position relative to PLANE_X
+
+  /* Death sequence: always plays, whatever zeroed the cargo — a fall, the
+     ground grind, or a low hazard hit all get the same beat. She sinks out
+     of sight behind the deck line, an explosion blooms where she went down,
+     and once that has fully burned out the same portrait used on the
+     results screen rises up behind the line, tilted like she just picked
+     herself up. Timings are phases of S.deathT, restarting its clock at
+     each phase change (see beginDeath()/updateDying()). */
+  const DEATH_SINK_TIME     = 0.32;  // seconds for her to sink out of sight
+  const DEATH_EXPLOSION_END = 0.85;  // seconds for the explosion to fully burn out
+  const DEATH_PEEK_RISE     = 0.42;  // seconds for the portrait to rise into place after
+  const DEATH_HOLD_TOTAL    = 1.85;  // total time in the 'sink' phase before results
 
   // Spawner.
   const SPAWN_X = W + 90;
@@ -407,9 +418,7 @@
 
      A tank is now the whole run. That turns the question from "where is the
      next canister" into "how much of this climb can I afford", which is the
-     decision the flight model was built around in the first place.
-
-     `ang` on a zapper is its tilt in degrees; `spin` makes it rotate. */
+     decision the flight model was built around in the first place. */
 
   const CHUNKS = [
     { name: 'open_gate', difficulty: 0, length: 620, entries: [
@@ -428,12 +437,12 @@
     ]},
     { name: 'low_road', difficulty: 1, length: 660, entries: [
       { dx: 120, y: 170, t: 'zapper_v' },
-      { dx: 420, y: 200, t: 'zapper_m' },
+      { dx: 420, y: 200, t: 'zapper_v' },
       { dx: 240, y: 448, t: 'life' },
     ]},
     { name: 'high_road', difficulty: 1, length: 660, entries: [
       { dx: 120, y: 400, t: 'zapper_v' },
-      { dx: 420, y: 360, t: 'zapper_m' },
+      { dx: 420, y: 360, t: 'zapper_v' },
       { dx: 600, y: 470, t: 'fan' },
     ]},
     { name: 'pillar_gate', difficulty: 2, length: 720, entries: [
@@ -449,23 +458,9 @@
       { dx: 440, y: 430, t: 'zapper_v' },
       { dx: 620, y: 290, t: 'life' },
     ]},
-    { name: 'slant', difficulty: 2, length: 700, entries: [
-      // Angled beams: the gap is a diagonal, so the line through is a climb
-      // rather than a hold.
-      { dx: 120, y: 200, t: 'zapper_a', ang:  34 },
-      { dx: 400, y: 350, t: 'zapper_a', ang: -34 },
-      { dx: 640, y: 468, t: 'tramp' },
-    ]},
-    { name: 'mill', difficulty: 2, length: 720, entries: [
-      // Spinners. Slow enough to read, fast enough that the gap moves while
-      // you commit to it.
-      { dx: 180, y: 300, t: 'zapper_s', spin: 1.1 },
-      { dx: 520, y: 220, t: 'zapper_s', spin: -0.85 },
-      { dx: 660, y: 470, t: 'fan' },
-    ]},
     { name: 'greed_shelf', difficulty: 2, length: 680, entries: [
       { dx: 160, y: 300, t: 'zapper_v' },
-      { dx: 460, y: 290, t: 'zapper_m' },
+      { dx: 460, y: 290, t: 'zapper_v' },
       { dx: 300, y: 120, t: 'life' },
       { dx: 620, y: 468, t: 'tramp' },
     ]},
@@ -614,12 +609,18 @@
       distance: 0,
       score: 0,
       speed: BASE_SCROLL_SPEED * SPEED_MULT,
-      planeY: 300,
+      planeY: FLOOR - 6,   // where the cannon launch starts her — see start()
       fallTime: 0,    // seconds she has been continuously falling, right now
       bigFall: 0,     // 0..1, eases toward 1 once fallTime clears BIG_FALL_DELAY
       camY: 0,
       diving: 0,
       vel: 0,
+      // null outside a real run — attract mode's idle bob calls draw()
+      // directly and never update(), so it never sees anything but null
+      // here. Set to 'rising' by start(); see updateLaunchRise().
+      launching: null,
+      launchT: 0,
+      launchKick: 0,   // current sideways offset while kicking into station, eases to 0
       fuel: FUEL_MAX,
       cargo: CARGO_MAX,
       seeds: 0,
@@ -637,6 +638,11 @@
       over: false,
       dying: null,    // null | 'falling' | 'sink' — see beginDeath()
       deathT: 0,
+      // What actually zeroed the cargo, set right at the moment it happens
+      // — 'zapper' | 'fireball' | 'ground' | 'ground-dry'. Shown on the
+      // results screen so "why did I die" has an answer that does not
+      // depend on either of us remembering the run afterward.
+      deathCause: null,
       shake: 0,
       flash: 0,
       thrusting: false,
@@ -721,13 +727,7 @@
     if (tries >= 6) return;
     const roll = Math.random();
 
-    if (roll < 0.32) {
-      spawnEntry(SPAWN_X, band, 'zapper_m');
-    } else if (roll < 0.50) {
-      spawnEntry(SPAWN_X, band, 'zapper_a', { ang: (Math.random() * 70 - 35) });
-    } else if (roll < 0.68) {
-      spawnEntry(SPAWN_X, band, 'zapper_s', { spin: (Math.random() * 1.6 - 0.8) || 0.9 });
-    } else if (roll < 0.80) {
+    if (roll < 0.80) {
       spawnEntry(SPAWN_X, band, 'zapper_v');
     } else if (roll < 0.88) {
       // The fan is not only a ground fixture any more — it turns up in the
@@ -749,7 +749,12 @@
     const every = S.distance < FUEL_EARLY_DIST_M ? FUEL_SPAWN_EVERY_EARLY : FUEL_SPAWN_EVERY;
     S.nextFuelAt = S.t + every;
 
-    let band = S.planeY + (Math.random() - 0.5) * 220;
+    // A third of the time it sits low, near the deck, instead of always
+    // trailing wherever she currently is — a real "swoop down for it" pick,
+    // not just a freebie sitting on her current line.
+    let band = Math.random() < 0.35
+      ? FLOOR - 60 - Math.random() * 70
+      : S.planeY + (Math.random() - 0.5) * 220;
     let tries = 0;
     while (!spaceIsFree(SPAWN_X, band, 60) && tries++ < 6) {
       band = S.planeY + (Math.random() - 0.5) * 260;
@@ -802,7 +807,24 @@
       S.chunksSinceBreather++;
     }
 
-    for (const e of chunk.entries) spawnEntry(SPAWN_X + e.dx, e.y, e.t, e);
+    // Chunks are hand-authored, so their own entries are deliberately close
+    // together sometimes (a cluster of beams IS the pattern) — spaceIsFree
+    // against everything would break that. But chunks are on a distance
+    // clock and fuel/life/shield are on their own independent timers, so a
+    // canister already scrolling through the lane has no say in where a
+    // chunk lands its beams a moment later. That gap is what made grabbing
+    // fuel occasionally double as an unexplained hit: the pickup and a
+    // freshly-spawned hazard could end up on top of each other with
+    // neither spawner ever checking the other. Only pickups are checked
+    // here, and only against what already exists, so it cannot affect how
+    // a chunk's own hazards are laid out relative to one another.
+    for (const e of chunk.entries) {
+      const x = SPAWN_X + e.dx;
+      const blockedByPickup = S.ents.some(o =>
+        !o.dead && (o.t === 'fuel' || o.t === 'life' || o.t === 'ball') &&
+        Math.abs(o.x - x) < 50 && Math.abs(o.y - e.y) < 50);
+      if (!blockedByPickup) spawnEntry(x, e.y, e.t, e);
+    }
     S.nextChunkAt = S.scrolled + chunk.length + CHUNK_GAP_PIXELS;
   }
 
@@ -836,21 +858,11 @@
       // the separate, smaller collision size, so shrinking one cannot
       // accidentally shrink the icon along with it.
       case 'life':     S.ents.push({ t, x, y, r: 20, hitR: 15, dead: false }); break;
-      case 'zapper_a': S.ents.push({ t, x, y, ang: (opts && opts.ang || 30) * Math.PI / 180,
-                                     w: 168, h: 11, dead: false }); break;
-      case 'zapper_s': S.ents.push({ t, x, y, ang: Math.random() * 3.14,
-                                     spinRate: (opts && opts.spin) || 1,
-                                     w: 168, h: 11, dead: false }); break;
       // r scales with the icon so what you see stays what you can grab.
       case 'ball':     S.ents.push({ t, x, y, r: 19, dead: false }); break;
       case 'fuel':     S.ents.push({ t, x, y, r: 15, dead: false }); break;
       case 'fan':      S.ents.push({ t, x, y, w: FAN_W, h: 14, cool: 0, dead: false }); break;
       case 'tramp':    S.ents.push({ t, x, y, w: 100, h: 18, animT: 0, dead: false }); break;
-      // A zapper that patrols up and down. baseY is where it was authored;
-      // it swings +/- range around that, so a chunk still reads as designed.
-      case 'zapper_m': S.ents.push({ t, x, y, baseY: y, range: 110, rate: 1.1,
-                                     phase: Math.random() * 6.28,
-                                     w: 11, h: 168, dead: false }); break;
       case 'zapper_v': S.ents.push({ t, x, y, w: 11, h: 168, dead: false }); break;
       case 'fireball': S.ents.push({ t, x, y, r: FIREBALL_R, hitR: FIREBALL_R * 0.75, dead: false,
                                      pal: FIREBALL_PALETTES[(Math.random() * FIREBALL_PALETTES.length) | 0] }); break;
@@ -877,16 +889,24 @@
     if (S.cargo <= 0) beginDeath();
   }
 
-  // Only a genuine fall gets the sequence — see updateDying(). A hit taken
-  // already close to the deck (a hard landing, the ground grind, a low
-  // hazard) has no real height to show falling away, so it cuts straight to
-  // results the way it always did.
+  // She holds behind the deck line for LAUNCH_RISE_TIME, then the cannon
+  // fires: an upward impulse plus a sideways kick that 'kick' (in update())
+  // eases back out over LAUNCH_KICK_TIME.
+  function updateLaunchRise(dt) {
+    S.launchT += dt;
+    if (S.launchT >= LAUNCH_RISE_TIME) {
+      S.launching = 'kick';
+      S.launchT = 0;
+      S.vel = LAUNCH_VEL;
+      S.launchKick = LAUNCH_X_KICK;
+      playSfx('trampBoost');
+      burst(PLANE_X + CANNON_X_OFFSET + 16, FLOOR - 98, '#7ee8ff', 16);   // at the muzzle — see the 'cannon' case in drawEntity()
+      S.shake = Math.min(14, S.shake + 10);
+    }
+  }
+
   function beginDeath() {
     if (S.over || S.dying) return;
-    if (FLOOR - S.planeY < DEATH_ANIM_MIN_HEIGHT) {
-      finish();
-      return;
-    }
     S.dying = 'falling';
     S.deathT = 0;
   }
@@ -916,15 +936,19 @@
         S.planeY = FLOOR;
         S.shake = Math.min(16, S.shake + 12);
         burst(PLANE_X, FLOOR, '#ff4d6d', 10);
-        // A cluster of blobs, each with its own size/delay/life, so the
-        // whole thing blooms outward unevenly and dissipates into a ragged
-        // ring rather than one uniform circle fading in place.
-        S.deathBlobs = Array.from({ length: 10 }, () => ({
-          dx: (Math.random() - 0.5) * 60,
-          dy: (Math.random() - 0.5) * 40,
-          r: 14 + Math.random() * 16,
-          delay: Math.random() * 0.12,
-          life: 0.5 + Math.random() * 0.25,
+        // Spiky starburst pop: one jagged ring, point lengths jittered once
+        // at creation so it reads as a single messy blast, not a neat star.
+        S.deathSpike = Array.from({ length: 12 }, () => 0.7 + Math.random() * 0.6);
+        // The puff that follows it: a cluster of solid circles, each with
+        // its own offset/size/delay/life, so it blooms outward unevenly and
+        // dissipates into a ragged spread of rings rather than one uniform
+        // shape fading in place.
+        S.deathBlobs = Array.from({ length: 8 }, () => ({
+          dx: (Math.random() - 0.5) * 70,
+          dy: (Math.random() - 0.5) * 44 - 8,
+          r: 15 + Math.random() * 17,
+          delay: 0.1 + Math.random() * 0.16,
+          life: 0.4 + Math.random() * 0.22,
         }));
         S.dying = 'sink';
         S.deathT = 0;
@@ -963,6 +987,18 @@
     // sight, and only updateDying() drives either of those.
     if (S.dying) { updateDying(dt); return; }
 
+    // 'rising': she is behind the deck line and nothing else has started
+    // yet — updateLaunchRise() owns the clock until the cannon fires.
+    // 'kick': it has fired — gravity and everything else below run as
+    // normal from here, this just decays the sideways kick and holds
+    // thrust off until she has settled into her flight station.
+    if (S.launching === 'rising') { updateLaunchRise(dt); return; }
+    if (S.launching === 'kick') {
+      S.launchT += dt;
+      S.launchKick = LAUNCH_X_KICK * Math.max(0, 1 - S.launchT / LAUNCH_KICK_TIME);
+      if (S.launchT >= LAUNCH_KICK_TIME) { S.launching = null; S.launchKick = 0; }
+    }
+
     S.t += dt;
 
     const ramp = (MAX_SCROLL_SPEED - BASE_SCROLL_SPEED) * (1 - Math.exp(-S.t / SPEED_RAMP_TAU));
@@ -985,7 +1021,9 @@
     }
 
     /* --- flight --- */
-    const canThrust = holding && S.fuel > 0;
+    // No fighting the launch — thrust stays off until the kick settles, so
+    // the cannon reads as one clean beat rather than something to wrestle.
+    const canThrust = holding && S.fuel > 0 && !S.launching;
 
     /* Falling accelerates. Past DIVE_FROM the pull ramps toward DIVE_GRAVITY,
        so coming down off a big climb is a plunge rather than a long drift --
@@ -1023,7 +1061,12 @@
     }
 
     // Falling gets a higher ceiling than climbing — see DIVE_VEL_CLAMP above.
-    S.vel = Math.max(-VEL_CLAMP, Math.min(canThrust ? VEL_CLAMP : DIVE_VEL_CLAMP, S.vel));
+    // The cannon kick gets its own higher ceiling too: without this, the
+    // ordinary ascent cap (VEL_CLAMP, the same one thrust is held to) cut
+    // LAUNCH_VEL down to it on the very next frame regardless of how much
+    // stronger the cannon was set to fire.
+    const ascentCap = S.launching ? -LAUNCH_VEL : VEL_CLAMP;
+    S.vel = Math.max(-ascentCap, Math.min(canThrust ? VEL_CLAMP : DIVE_VEL_CLAMP, S.vel));
     S.planeY += S.vel * dt;
 
     // Falling means under gravity and actually descending — thrusting or
@@ -1039,6 +1082,11 @@
     // fades out smoothly — just quickly (~1/6s), not the several seconds a
     // stale distance-below-peak used to hang around for.
     S.bigFall += (bigFallTarget - S.bigFall) * Math.min(1, dt * 6);
+    // Scaled by bigFall itself, so the rattle builds in step with the dive
+    // committing rather than snapping on — has to clear the constant decay
+    // below (dt * 34) by a real margin once bigFall is most of the way in,
+    // the same mistake the ground-grind shake made at weaker rates.
+    if (S.bigFall > 0.15) S.shake = Math.min(9, S.shake + dt * 70 * S.bigFall);
 
     // No ceiling. She can climb as far as fuel allows; the camera follows.
     if (S.planeY > FLOOR) {
@@ -1070,14 +1118,21 @@
       const warnedAlready = S.groundedFor > GROUND_FEEDBACK_DELAY;
       S.groundedFor += dt;
       S.cargo = Math.max(0, S.cargo - CARGO_GROUND_DRAIN * dt);
-      S.shake = Math.min(9, S.shake + dt * 26);
+      // A drag through the deck still rattles the screen a little from the
+      // first instant — gating it entirely behind a delay made a quick
+      // graze read as no feedback at all. It only escalates to the harder
+      // shake once she has actually sat there a full second. Both rates
+      // have to clear the constant decay below (dt * 34) by a real margin —
+      // anything close to or under that never visibly accumulates, which is
+      // why the previous 9/26 rates here never actually shook the screen.
+      S.shake = Math.min(9, S.shake + dt * (S.groundedFor > 1 ? 90 : 50));
       if (!warnedAlready && S.groundedFor > GROUND_FEEDBACK_DELAY) {
         playSfx('hit');
         S.flash = 0.4;
         burst(PLANE_X, S.planeY, '#ff4d6d', 8);
       }
       if (S.groundedFor > 0.35) say('ground', { hold: 1800 });
-      if (S.cargo <= 0) { beginDeath(); return; }
+      if (S.cargo <= 0) { S.deathCause = S.fuel <= 0 ? 'ground-dry' : 'ground'; beginDeath(); return; }
     } else {
       S.groundedFor = 0;
     }
@@ -1143,7 +1198,7 @@
     maybeSpawnFireball();
 
     /* --- entities --- */
-    const px = PLANE_X, pr = PLANE_R;
+    const px = PLANE_X + S.launchKick, pr = PLANE_R;
     for (const e of S.ents) {
       e.x -= dx;
       if (e.x < -260) e.dead = true;
@@ -1185,17 +1240,21 @@
           playSfx('trampBoost');
           burst(e.x, e.y, '#a78bfa', 10);
         }
-      } else if (e.t.indexOf('zapper') === 0) {
-        if (e.t === 'zapper_s') e.ang += e.spinRate * dt;
-        // Patrolling zappers ride a sine around where they were authored, so
-        // the chunk still reads as designed — the beam just sweeps the gap.
-        if (e.t === 'zapper_m') e.y = e.baseY + Math.sin(S.t * e.rate + e.phase) * e.range;
+      } else if (e.t === 'zapper_v') {
         // Once per beam, well before it enters her lane — a real heads-up
         // ahead of the hit, not a repeated alarm while it lingers nearby.
         // Widened from 140/120: a thin 13px-wide vertical beam scrolling in
         // at full speed closed that gap in under half a second, which read
         // as a hit with no warning at all.
-        if (!e.warned && Math.abs(e.x - px) < 260 && Math.abs(e.y - S.planeY) < 160) {
+        //
+        // X-distance only now — it used to also require the player's
+        // CURRENT y to already be near the beam's y. That was fine standing
+        // still, but a fast dive (up to 1050px/s) can cross the old 160px
+        // y-band in under 0.06s, so the warning and the hit landed close
+        // enough together to read as no warning at all. Diving into a
+        // beam's lane should still get the same heads-up as flying level
+        // into one, not less.
+        if (!e.warned && Math.abs(e.x - px) < 260) {
           e.warned = true;
           playSfx('zapperNear');
         }
@@ -1205,6 +1264,7 @@
             popShield();          // absorbs the hit; the cargo is untouched
           } else {
             playSfx('hit');
+            S.deathCause = 'zapper';
             damageCargo(CARGO_HAZARD_DAMAGE);
             if (S.over || S.dying) return;
           }
@@ -1230,6 +1290,7 @@
             popShield();
           } else {
             playSfx('hit');
+            S.deathCause = 'fireball';
             damageCargo(CARGO_HAZARD_DAMAGE);
             if (S.over || S.dying) return;
           }
@@ -1263,12 +1324,7 @@
      separate test, the plane is rotated into the beam's own frame — the same
      maths as the axis-aligned case once you are in local space. */
   function hitsRect(px, py, pr, e) {
-    let lx = px - e.x, ly = py - e.y;
-    if (e.ang) {
-      const c = Math.cos(-e.ang), s = Math.sin(-e.ang);
-      const rx = lx * c - ly * s, ry = lx * s + ly * c;
-      lx = rx; ly = ry;
-    }
+    const lx = px - e.x, ly = py - e.y;
     const hw = e.w / 2, hh = e.h / 2;
     const cx = Math.max(-hw, Math.min(lx, hw));
     const cy = Math.max(-hh, Math.min(ly, hh));
@@ -1329,9 +1385,12 @@
     for (const e of S.ents) drawEntity(e);
     drawParticles();
     // Once she is down, she sinks out of sight and the portrait replaces
-    // her — see beginDeath().
+    // her — see beginDeath(). Symmetrically, a run opens with her behind
+    // the same line next to the cannon — see start()/updateLaunchRise().
     if (S.dying === 'sink') {
       drawDeathSink();
+    } else if (S.launching === 'rising') {
+      drawLaunchRise();
     } else {
       drawPlane();
       drawShield();   // over her, so it reads as a bubble she is sitting inside
@@ -1499,26 +1558,53 @@
         ctx.restore();
         break;
       }
-      case 'zapper_m':
+      case 'cannon': {
+        // Black body, cyan outline, matching the rest of the prop palette.
+        // One wheel; the barrel leans just a little off vertical, toward
+        // the direction the launch actually sends her, rather than sitting
+        // dead straight or swinging to the old steep diagonal. Purely
+        // decorative — there is no case for it in the collision loop above,
+        // so it never touches her.
+        const bx = e.x, by = e.y;
+        const barrelW = 24, barrelLen = 92;
+        const tilt = 0.18;   // just a lean, not the old steep diagonal
+        glow('#00f0ff', 14, () => {
+          ctx.fillStyle = '#0c0c14';
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2.4;
+
+          ctx.beginPath();
+          ctx.arc(bx, by, 8, 0, 6.2832);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.save();
+          ctx.translate(bx, by - 8);
+          ctx.rotate(tilt);
+          ctx.beginPath();
+          ctx.rect(-barrelW / 2, -barrelLen, barrelW, barrelLen);
+          ctx.fill();
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, -barrelLen, 13, 0, 6.2832);
+          ctx.stroke();
+          ctx.restore();
+        });
+        break;
+      }
       case 'zapper_v': {
         /* A ray rather than a bar: three stacked beams, each narrower and
            hotter than the last, ending in a near-white core. The flicker mixes
            two rates so it crackles instead of throbbing. */
-        // Angled and spinning beams draw in their own rotated frame, which is
-        // the same frame hitsRect tests in — so what you see is what hits you.
-        ctx.save();
-        if (e.ang) { ctx.translate(e.x, e.y); ctx.rotate(e.ang); ctx.translate(-e.x, -e.y); }
         const flick = 0.78 + Math.sin(S.t * 27) * 0.14 + Math.sin(S.t * 9) * 0.08;
-        const horiz = e.w > e.h;   // driven by shape, not type — matches hitsRect exactly
-        const len = horiz ? e.w : e.h;
+        const len = e.h;
         const beam = (thick, color, alpha, blur) => {
           ctx.save();
           ctx.globalAlpha = alpha * flick;
           ctx.shadowColor = color;
           ctx.shadowBlur = blur;
           ctx.fillStyle = color;
-          const w = horiz ? len : thick, h = horiz ? thick : len;
-          ctx.fillRect(e.x - w / 2, e.y - h / 2, w, h);
+          ctx.fillRect(e.x - thick / 2, e.y - len / 2, thick, len);
           ctx.restore();
         };
         beam(26, '#ff1030', 0.22, 30);   // outer bloom
@@ -1531,15 +1617,9 @@
         ctx.shadowColor = '#ff1030';
         ctx.shadowBlur = 14;
         ctx.fillStyle = '#ff5566';
-        if (horiz) {
-          ctx.fillRect(e.x - len / 2 - 8, e.y - 13, 10, 26);
-          ctx.fillRect(e.x + len / 2 - 2, e.y - 13, 10, 26);
-        } else {
-          ctx.fillRect(e.x - 13, e.y - len / 2 - 8, 26, 10);
-          ctx.fillRect(e.x - 13, e.y + len / 2 - 2, 26, 10);
-        }
+        ctx.fillRect(e.x - 13, e.y - len / 2 - 8, 26, 10);
+        ctx.fillRect(e.x - 13, e.y + len / 2 - 2, 26, 10);
         ctx.restore();
-        ctx.restore();   // closes the rotated frame opened above
         break;
       }
     }
@@ -1596,8 +1676,31 @@
     flameTongue(len * 0.32, f.halfW * 0.40, f.core,   8, 0.95);
   }
 
+  // The opening beat, mirroring drawDeathSink()'s clip: she rises up from
+  // behind the deck line next to the cannon rather than sinking behind it.
+  // Once the cannon fires (see updateLaunchRise()), S.launching moves to
+  // 'kick' and drawPlane() takes over — this only ever covers the hold
+  // before that happens.
+  function drawLaunchRise() {
+    const x = PLANE_X + CANNON_X_OFFSET;
+    const groundY = FLOOR + 18;   // the deck line drawFloor() draws
+    const ease = (p) => p * p * (3 - 2 * p);   // smoothstep — a gentler rise than the death sink's fall
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-20, -20, W + 40, groundY + 20);
+    ctx.clip();
+
+    const p = ease(Math.min(1, S.launchT / LAUNCH_RISE_TIME));
+    const startY = groundY + 50;   // fully below the clip line
+    const restY = S.planeY;        // the cannon's muzzle height — where the kick then launches her from
+    sprite('plane', x, startY + (restY - startY) * p);
+
+    ctx.restore();
+  }
+
   function drawPlane() {
-    const x = PLANE_X, y = S.planeY;
+    const x = PLANE_X + S.launchKick, y = S.planeY;
     const tilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
 
     ctx.save();
@@ -1684,60 +1787,110 @@
     const sinkP = ease(Math.min(1, S.deathT / DEATH_SINK_TIME));
     if (sinkP < 1) sprite('plane', x, FLOOR + sinkP * 70);
 
-    const peekP = ease(Math.min(1, Math.max(0, S.deathT - DEATH_SINK_TIME) / DEATH_PEEK_RISE));
+    // Held back until the explosion has fully burned out, so the beat reads
+    // as sink, then blast, then she climbs back into frame — not all three
+    // happening on top of each other.
+    const peekP = ease(Math.min(1, Math.max(0, S.deathT - DEATH_EXPLOSION_END) / DEATH_PEEK_RISE));
     if (peekP > 0) {
       const restY = groundY - 14;    // most of the portrait showing, feet still hidden
       const startY = groundY + 50;   // fully below the clip line
       const bob = Math.sin(S.t * 4) * 2 * peekP;
-      sprite('endPhoto', x, startY + (restY - startY) * peekP + bob);
+      const tilt = -0.1 * peekP;     // settles in at a slight lean, not dead straight
+      ctx.save();
+      ctx.translate(x, startY + (restY - startY) * peekP + bob);
+      ctx.rotate(tilt);
+      sprite('endPhoto', 0, 0);
+      ctx.restore();
     }
 
     ctx.restore();
     drawDeathExplosion();   // unclipped — it happens at the deck line, not behind it
   }
 
-  // A cluster of soft pink blooms, each on its own delay/life, so the burst
-  // reads as one ragged cloud rather than a single circle: bright core first,
-  // fading to a thin expanding ring, echoing a firework's bloom-then-fade
-  // shape rather than a flat flash.
+  // Three beats, recreated procedurally (no source art for this one either):
+  // a spiky starburst pop, then a cluster of solid circles blooming outward,
+  // each one collapsing to a thin ring and fading — then a soft magenta
+  // glaze laid over the whole thing so it reads as one warm-pink flash
+  // rather than a pile of separately-coloured shapes.
   function drawDeathExplosion() {
     if (!S.deathBlobs) return;
     const x = PLANE_X, y = FLOOR;
     const ease = (p) => 1 - Math.pow(1 - p, 3);
+
+    if (S.deathSpike) {
+      const SPIKE_TIME = 0.24;
+      const p = S.deathT / SPIKE_TIME;
+      if (p < 1) {
+        const grow = ease(Math.min(1, p / 0.55));
+        const alpha = Math.max(0, 1 - Math.max(0, (p - 0.5) / 0.5));
+        const outer = 8 + grow * 46;
+        const points = S.deathSpike.length;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, outer);
+        g.addColorStop(0,    '#fff0fa');
+        g.addColorStop(0.4,  '#ff8ad6');
+        g.addColorStop(1,    '#ff2b8a');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        for (let i = 0; i <= points * 2; i++) {
+          const a = (i / (points * 2)) * 6.2832;
+          const jitter = S.deathSpike[i % points];
+          const r = (i % 2 === 0) ? outer * jitter : outer * 0.42;
+          const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r * 0.7;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
     for (const b of S.deathBlobs) {
       const t = S.deathT - b.delay;
       if (t < 0 || t > b.life) continue;
       const p = t / b.life;
-      const grow = ease(Math.min(1, p / 0.3));
-      const r = b.r * (0.3 + grow * 0.9);
+      const grow = ease(Math.min(1, p / 0.35));
+      const r = b.r * (0.25 + grow * 0.85);
       const bx = x + b.dx, by = y + b.dy;
 
-      const fillAlpha = Math.max(0, 1 - p * 1.3) * 0.9;
+      const fillAlpha = Math.max(0, 1 - Math.max(0, (p - 0.45) / 0.55)) * 0.85;
       if (fillAlpha > 0.01) {
         ctx.save();
         ctx.globalAlpha = fillAlpha;
-        const g = ctx.createRadialGradient(bx, by, 0, bx, by, r);
-        g.addColorStop(0,    '#fff0fa');
-        g.addColorStop(0.45, '#ff5ad1');
-        g.addColorStop(1,    'rgba(255,43,214,0)');
-        ctx.fillStyle = g;
+        ctx.fillStyle = p < 0.45 ? '#ff5ad1' : '#c93cff';
         ctx.beginPath();
         ctx.arc(bx, by, r, 0, 6.2832);
         ctx.fill();
         ctx.restore();
       }
 
-      const ringAlpha = Math.max(0, (p - 0.4) / 0.6) * 0.7;
+      const ringAlpha = Math.max(0, (p - 0.5) / 0.5) * 0.7;
       if (ringAlpha > 0.01) {
         ctx.save();
         ctx.globalAlpha = ringAlpha;
         ctx.strokeStyle = '#ff2bd6';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(bx, by, r * (1 + (p - 0.4) * 0.8), 0, 6.2832);
+        ctx.arc(bx, by, r * (1 + (p - 0.5) * 0.6), 0, 6.2832);
         ctx.stroke();
         ctx.restore();
       }
+    }
+
+    // The overlay glaze, on top of everything above.
+    const overlayAlpha = Math.max(0, 1 - S.deathT / DEATH_EXPLOSION_END) * 0.35;
+    if (overlayAlpha > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = overlayAlpha;
+      const og = ctx.createRadialGradient(x, y, 0, x, y, 95);
+      og.addColorStop(0, '#ff2bd6');
+      og.addColorStop(1, 'rgba(255,43,214,0)');
+      ctx.fillStyle = og;
+      ctx.beginPath();
+      ctx.arc(x, y, 95, 0, 6.2832);
+      ctx.fill();
+      ctx.restore();
     }
   }
 
@@ -2072,9 +2225,19 @@
     say(isRecord ? 'record' : 'dead', { force: true, hold: 5000 });
 
     setStage('results');
-    const ranOutOfFuel = S.fuel <= 0 && S.cargo > 0;
-    ovTitle.textContent = ranOutOfFuel ? 'RUN ENDED' : 'WELL PLAYED';
-    ovTitle.style.color = ranOutOfFuel ? '#ff4d6d' : '#00f0ff';
+    ovTitle.textContent = 'WELL PLAYED';
+    ovTitle.style.color = '#00f0ff';
+
+    // Answers "why did I die" without either of us having to reconstruct
+    // the run afterward — S.deathCause is set right where the fatal hit or
+    // drain actually happens, not guessed at here.
+    const CAUSE_TEXT = {
+      zapper: 'A zapper caught you.',
+      fireball: 'A fireball caught you.',
+      ground: 'The deck ground the cargo down.',
+      'ground-dry': 'Ran dry, then the deck ground you down.',
+    };
+    const causeText = CAUSE_TEXT[S.deathCause] || '';
 
     // No name to type in any more, so a qualifying score just goes straight
     // onto the board — nothing left for the player to do but see it land.
@@ -2088,7 +2251,8 @@
     }
 
     const summary =
-      `<dl class="result-grid">
+      `${causeText ? `<p class="death-cause">${causeText}</p>` : ''}
+       <dl class="result-grid">
          <dt>Score</dt><dd><strong>${score}</strong></dd>
          <dt>Distance</dt><dd>${Math.floor(S.distance)} m</dd>
        </dl>`;
@@ -2108,6 +2272,8 @@
 
   function start() {
     reset();
+    S.launching = 'rising';
+    S.ents.push({ t: 'cannon', x: PLANE_X + CANNON_X_OFFSET, y: FLOOR, dead: false });
     overlay.classList.add('hidden');
     ovBtn.dataset.action = 'restart';
     running = true;
