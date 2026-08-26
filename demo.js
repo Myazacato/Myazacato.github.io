@@ -186,10 +186,12 @@
               len: 14, halfW: 5.5, sparks: 0.5, spark: '#ffd75c' },
   };
 
-  // Flight physics.
-  const GRAVITY     = 1500;
+  // Flight physics. Tuned toward a plane/glide feel over a fall: a long,
+  // fast coast after you let go of thrust before gravity actually turns it
+  // into a descent, and a light pull once it does.
+  const GRAVITY     = 500;
   const THRUST      = -2750;
-  const VEL_CLAMP   = 700;    // caps ASCENT always, and unpowered falls too
+  const VEL_CLAMP   = 1000;   // caps ASCENT always, and unpowered falls too
   const TRAMP_BOOST = -780;
   /* Dive: past DIVE_FROM the fall ramps toward DIVE_GRAVITY, so a long drop
      has weight to it instead of floating down at a constant rate. Falling
@@ -1414,15 +1416,24 @@
     drawCapAltimeter();   // separate canvas, so a separate call outside ctx.save/restore
   }
 
-  function drawFloor() {
-    // The deck glows hot while you are on it — the damage should be visible,
-    // not just a number ticking down.
+  // Just the deck line itself, split out of drawFloor() so drawDeathSink()
+  // and drawLaunchRise() can repaint it on top of her once she is drawn —
+  // otherwise the clipped reveal still draws over the line where the two
+  // meet, and she reads as standing in front of it rather than behind it.
+  function drawDeckLine() {
     const hot = S.grounded && !S.over;
     ctx.strokeStyle = hot ? 'rgba(255,77,109,.95)' : 'rgba(255,43,214,.45)';
     ctx.lineWidth = hot ? 4 : 2;
     if (hot) { ctx.shadowColor = '#ff4d6d'; ctx.shadowBlur = 22; }
     ctx.beginPath(); ctx.moveTo(0, FLOOR + 18); ctx.lineTo(W, FLOOR + 18); ctx.stroke();
     ctx.shadowBlur = 0;
+  }
+
+  function drawFloor() {
+    // The deck glows hot while you are on it — the damage should be visible,
+    // not just a number ticking down.
+    const hot = S.grounded && !S.over;
+    drawDeckLine();
 
     ctx.strokeStyle = hot ? 'rgba(255,77,109,.22)' : 'rgba(255,43,214,.14)';
     ctx.lineWidth = 1;
@@ -1697,6 +1708,7 @@
     sprite('plane', x, startY + (restY - startY) * p);
 
     ctx.restore();
+    drawDeckLine();   // repainted on top, so she reads as rising from behind it
   }
 
   function drawPlane() {
@@ -1804,7 +1816,8 @@
     }
 
     ctx.restore();
-    drawDeathExplosion();   // unclipped — it happens at the deck line, not behind it
+    drawDeckLine();          // repainted on top, so she reads as behind it, not overlapping it
+    drawDeathExplosion();    // unclipped — it happens at the deck line, not behind it
   }
 
   // Three beats, recreated procedurally (no source art for this one either):
