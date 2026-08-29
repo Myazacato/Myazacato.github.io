@@ -382,10 +382,18 @@ main, .topbar, footer { position: relative; z-index: 1; }
 
 .chrome-title {
   margin-left: 10px;
+  min-width: 0;
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: .16em;
   color: var(--text-faint);
+  /* Flex items don't shrink below their content's width by default, so on a
+     narrow phone this used to wrap to a second line and grow the whole bar
+     taller, overlapping the overlay content below it. min-width: 0 lets it
+     shrink instead, and this turns "wrap" into "truncate". */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Captain panel sits beside the canvas rather than over it, so the play area
@@ -1004,7 +1012,16 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
   .cap-portrait { --cap: 52px; flex: 0 0 52px; }
   .cap-altimeter { max-width: 52px; flex: 0 0 52px; }
   .cap-bubble { flex: 1; padding: 8px 11px; }
-  .cap-bubble::before { right: auto; left: -6px; top: 50%; bottom: auto; margin-top: -5px; }
+  /* Row layout puts the portrait to the right of the bubble now (gauge,
+     bubble, portrait, left to right, in DOM order) — the tail follows: off
+     the right edge, pointing right at her, instead of down. */
+  .cap-bubble::before {
+    right: -6px; left: auto; top: 50%; bottom: auto; margin-top: -5px;
+    border-top: 1.4px solid rgba(0,240,255,.5);
+    border-bottom: none;
+  }
+  .captain[data-mood="alarm"] .cap-bubble::before { border-top-color: rgba(255,77,109,.55); }
+  .captain[data-mood="good"]  .cap-bubble::before { border-top-color: rgba(92,255,157,.5); }
   /* No room for a floating rail on a narrow screen, and hover-reveal labels
      don't mean much on touch anyway. */
   .case-dots { display: none; }
@@ -1012,6 +1029,11 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
 
 @media (max-width: 700px) {
   body { font-size: 16px; }
+  /* At this width the canvas itself is short (it keeps the 960x540 ratio),
+     so the intro copy — vertically centred over the whole play area — can
+     run right through the photo's corner. It stays as a small accent
+     instead of something that can swallow a word. */
+  .title-photo { width: 16%; max-width: 64px; opacity: .55; }
   .topbar { flex-direction: column; align-items: flex-start; gap: 10px; }
   .topbar nav { gap: 2px; }
   .topbar nav a { padding: 5px 8px; font-size: 12px; }
