@@ -1261,14 +1261,23 @@
     if (S.fuel > 0) {
       const f = canThrust ? FLAME.thrust : FLAME.hover;
       S.sparkDebt += f.sparks * dt * 60;
-      const tilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
+      // Has to match drawPlane()'s own position/tilt exactly, or the sparks
+      // drift away from the actual flame nozzle — which they did for the
+      // whole kick: she sits at PLANE_X + S.launchKick then, leaning toward
+      // the barrel angle, not plain PLANE_X with a velocity-only tilt.
+      const normalTilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
+      let tilt = normalTilt;
+      if (S.launching === 'kick') {
+        const kickP = Math.min(1, Math.abs(S.launchKick / LAUNCH_X_KICK));
+        tilt = CANNON_ANGLE * 0.4 * kickP + normalTilt * (1 - kickP);
+      }
       const cos = Math.cos(tilt), sin = Math.sin(tilt);
       const noz = flameNozzle();
       const nx = noz.x - f.len * 0.5, ny = noz.y;
       while (S.sparkDebt >= 1) {
         S.sparkDebt -= 1;
         S.particles.push({
-          x: PLANE_X + nx * cos - ny * sin,
+          x: PLANE_X + S.launchKick + nx * cos - ny * sin,
           y: S.planeY + nx * sin + ny * cos,
           vx: -S.speed * 0.45 - Math.random() * 90,
           vy: (Math.random() - 0.5) * 70 + 40,
@@ -2383,7 +2392,13 @@
     // updateLaunchBlast() for what happens once the blast finishes.
     S.launching = 'blast';
     playSfx('trampBoost');
-    burst(PLANE_X + CANNON_X_OFFSET + CANNON_TIP.dx, FLOOR + CANNON_TIP.dy, '#39ff6a', 16);
+    // No separate spark burst here any more — it used to accompany the old
+    // procedural blast, but particles only get updated in update()'s main
+    // body, which 'blast' skips entirely (see updateLaunchBlast()). The
+    // burst sat frozen — full alpha, no motion — for the whole explosion,
+    // then resumed decaying once 'kick' started scrolling the world again,
+    // reading as a stray pixel left behind near the cannon. The real
+    // explosion sprite already covers the muzzle-flash beat on its own.
     S.blastActive = true;
     S.shake = Math.min(14, S.shake + 10);
     overlay.classList.add('hidden');
