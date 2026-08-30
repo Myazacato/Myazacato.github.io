@@ -1034,6 +1034,23 @@ footer p { font-family: var(--mono); font-size: 12.5px; color: var(--text-faint)
      run right through the photo's corner. It stays as a small accent
      instead of something that can swallow a word. */
   .title-photo { width: 16%; max-width: 64px; opacity: .55; }
+  /* The game was sitting inside the section's normal text padding, losing
+     ~48px of width it didn't need to — full-bleed it so the canvas (which
+     just follows width, see #game below) renders as large as the phone
+     actually allows instead of being squeezed in from both sides. */
+  #play .game-frame {
+    margin-left: calc(-1 * max(24px, 5vw));
+    margin-right: calc(-1 * max(24px, 5vw));
+    border-radius: 0;
+  }
+  /* The overlay is sized to match the canvas exactly, and at this width
+     the canvas is short enough (960:540 kept at ~211px on a 375px phone)
+     that the intro copy plus the Start button didn't fit — the button was
+     getting clipped off the bottom of the card entirely, not just tight.
+     :has() scopes this to only when the overlay is actually showing, so
+     the playing canvas itself stays at its normal short height instead of
+     leaving dead space below it once a run is in progress. */
+  .canvas-wrap:has(.overlay:not(.hidden)) { min-height: 460px; }
   .topbar { flex-direction: column; align-items: flex-start; gap: 10px; }
   .topbar nav { gap: 2px; }
   .topbar nav a { padding: 5px 8px; font-size: 12px; }

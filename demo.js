@@ -224,20 +224,19 @@
   const BIG_FALL_DELAY = 2;     // seconds of continuous falling before it starts
   const BIG_FALL_RAMP  = 1.5;   // further seconds to reach full intensity
 
-  /* Opening beat: a real Start Run begins with her behind the deck line
-     next to the cannon, out of sight, rising into view before it fires her
-     up and to the right — the death sink's clip trick run in reverse, so
-     the same shape (hidden behind the line, then revealed) opens a run and
-     closes one. Attract mode's idle bob never calls update() at all, so it
-     never touches this — see reset()/start(). */
-  const LAUNCH_RISE_TIME = 0.5;    // seconds rising behind the cannon before it fires
+  /* Opening beat: a real Start Run begins with the cannon firing immediately
+     — no charge-up first, just the real explosion sprite (SPRITES.launchBlast)
+     at the barrel tip. She stays out of sight for the whole blast, then
+     actually launches up and to the right once it's done. Attract mode's
+     idle bob never calls update() at all, so it never touches any of
+     this — see reset()/start(). */
   const LAUNCH_KICK_TIME = 0.8;    // seconds for the sideways kick to settle into her flight station
   // She was drawn from the very first frame of the blast, at the same instant
   // as the explosion itself — reading as "both appear at once" rather than
-  // her actually launching out of it. This holds her back until the blast is
-  // partway through (see drawLaunchBlast()'s 7-frame strip), then fades her
-  // in quickly rather than popping her in on the one frame it unblocks.
-  const LAUNCH_REVEAL_DELAY = 0.2;
+  // her actually launching out of it. draw() below holds her back until the
+  // blast's own strip (SPRITES.launchBlast) has fully played through, then
+  // fades her in quickly rather than popping her in on the one frame it
+  // unblocks — see LAUNCH_REVEAL_FADE.
   const LAUNCH_REVEAL_FADE  = 0.1;
   const LAUNCH_VEL        = -750;  // upward impulse the cannon fires her with — less vertical than before, the kick carries more of it now
   // She materializes at the cannon's muzzle, up and to the right of her
@@ -378,7 +377,6 @@
      second cutting the first off. Silent whenever the music is — one mute
      button for both, since the game only exposes the one control. */
   const SFX = {
-    zapperNear: 'assets/audio/zapper-near.wav',   // a beam is about to cross her lane
     death:      'assets/audio/death.wav',
     fuel:       'assets/audio/fuel.wav',
     hit:        'assets/audio/hit.wav',            // a hazard actually landed
@@ -681,7 +679,7 @@
       vel: 0,
       // null outside a real run — attract mode's idle bob calls draw()
       // directly and never update(), so it never sees anything but null
-      // here. Set to 'rising' by start(); see updateLaunchRise().
+      // here. Set to 'blast' by start(); see updateLaunchBlast().
       launching: null,
       launchT: 0,
       launchKick: 0,   // current sideways offset while kicking into station, eases to 0
@@ -773,6 +771,15 @@
   const SKY_FROM     = 140;    // altitude at which the upper air wakes up
   const SKY_INTERVAL = 300;    // px of travel between sky spawns
 
+  // Every band below is centred on her CURRENT altitude with a wide random
+  // spread — fine while she's high up, but near the deck that spread easily
+  // reaches past FLOOR, spawning a pickup or hazard sunk into the ground.
+  // Clamping the result is simpler than special-casing each spawner's own
+  // math for "she's low right now".
+  function clampAboveFloor(y) {
+    return Math.min(y, FLOOR - 40);
+  }
+
   function maybeSpawnSky() {
     const altitude = FLOOR - S.planeY;
     if (altitude < SKY_FROM) return;
@@ -781,13 +788,13 @@
 
     // Placed around HER altitude, not a fixed band, so it keeps finding her
     // however high she goes.
-    let band = S.planeY + (Math.random() - 0.5) * 260;
+    let band = clampAboveFloor(S.planeY + (Math.random() - 0.5) * 260);
     // Nudge off anything already occupying that slot; give up rather than
     // force a spawn, since a skipped hazard is invisible and a stacked one
     // is unreadable.
     let tries = 0;
     while (!spaceIsFree(SPAWN_X, band, 95) && tries++ < 6) {
-      band = S.planeY + (Math.random() - 0.5) * 300;
+      band = clampAboveFloor(S.planeY + (Math.random() - 0.5) * 300);
     }
     if (tries >= 6) return;
     const roll = Math.random();
@@ -817,12 +824,12 @@
     // A third of the time it sits low, near the deck, instead of always
     // trailing wherever she currently is — a real "swoop down for it" pick,
     // not just a freebie sitting on her current line.
-    let band = Math.random() < 0.35
+    let band = clampAboveFloor(Math.random() < 0.35
       ? FLOOR - 60 - Math.random() * 70
-      : S.planeY + (Math.random() - 0.5) * 220;
+      : S.planeY + (Math.random() - 0.5) * 220);
     let tries = 0;
     while (!spaceIsFree(SPAWN_X, band, 60) && tries++ < 6) {
-      band = S.planeY + (Math.random() - 0.5) * 260;
+      band = clampAboveFloor(S.planeY + (Math.random() - 0.5) * 260);
     }
     if (tries >= 6) return;
     spawnEntry(SPAWN_X, band, 'fuel');
@@ -836,17 +843,13 @@
     if (S.t < S.nextFireballAt) return;
     S.nextFireballAt = S.t + FIREBALL_SPAWN_EVERY * (0.75 + Math.random() * 0.6);
 
-    let band = S.planeY + (Math.random() - 0.5) * 280;
+    let band = clampAboveFloor(S.planeY + (Math.random() - 0.5) * 280);
     let tries = 0;
     while (!spaceIsFree(SPAWN_X, band, 70) && tries++ < 6) {
-      band = S.planeY + (Math.random() - 0.5) * 320;
+      band = clampAboveFloor(S.planeY + (Math.random() - 0.5) * 320);
     }
     if (tries >= 6) return;
     spawnEntry(SPAWN_X, band, 'fireball');
-    // It starts off-screen with no lane to gradually enter like a zapper
-    // does, so the only fair place for a warning is right at the spawn —
-    // otherwise it is a hit with no cue at all before it lands.
-    playSfx('zapperNear');
   }
 
   function maybeSpawnChunk() {
@@ -954,25 +957,25 @@
     if (S.cargo <= 0) beginDeath();
   }
 
-  // She materializes at the cannon's muzzle for LAUNCH_RISE_TIME, then it
-  // fires: an upward impulse plus a sideways kick that 'kick' (in update())
-  // eases back out over LAUNCH_KICK_TIME. Any control button (the same
-  // `down()` handler thrust uses) fires it early.
-  function updateLaunchRise(dt) {
+  // The explosion's own phase, entered straight from start() — nothing moves
+  // (world, cannon, her) while this plays, so she isn't already 92px away
+  // and rising by the time the smoke clears.
+  // Once the sprite strip has fully played, THAT's when she actually
+  // launches — see the 'kick' branch in update().
+  function updateLaunchBlast(dt) {
     S.launchT += dt;
-    if (holding || S.launchT >= LAUNCH_RISE_TIME) {
+    const blastDuration = SPRITES.launchBlast.frames / SPRITES.launchBlast.fps;
+    if (S.launchT >= blastDuration) {
       S.launching = 'kick';
       S.launchT = 0;
       S.vel = LAUNCH_VEL;
-      S.launchKick = LAUNCH_X_KICK;
-      playSfx('trampBoost');
-      burst(PLANE_X + CANNON_X_OFFSET + CANNON_TIP.dx, FLOOR + CANNON_TIP.dy, '#39ff6a', 16);
-      // The muzzle blast: the real explosion sprite (SPRITES.launchBlast),
-      // played once from the barrel tip — see drawLaunchBlast(). S.launchT
-      // already resets to 0 right above, so it doubles as this effect's own
-      // clock too, same as the kick's.
-      S.blastActive = true;
-      S.shake = Math.min(14, S.shake + 10);
+      // Starts at the tip's own offset from PLANE_X (not the full kick) so
+      // her first visible position lands exactly on the tip she just came
+      // from, not partway through the kick already — see the 'kick' branch
+      // in update(), which ramps this up to LAUNCH_X_KICK over
+      // LAUNCH_REVEAL_FADE, in step with her fading into view.
+      S.launchKick = CANNON_X_OFFSET + CANNON_TIP.dx;
+      S.blastActive = false;
     }
   }
 
@@ -1058,24 +1061,26 @@
     // sight, and only updateDying() drives either of those.
     if (S.dying) { updateDying(dt); return; }
 
-    // 'rising': she is behind the deck line and nothing else has started
-    // yet — updateLaunchRise() owns the clock until the cannon fires.
-    // 'kick': it has fired — gravity and everything else below run as
-    // normal from here, this just decays the sideways kick and holds
+    // 'blast': the cannon has fired but nothing moves yet — updateLaunchBlast()
+    // holds the world still until the explosion has fully played.
+    // 'kick': she has actually launched — gravity and everything else below
+    // run as normal from here, this just decays the sideways kick and holds
     // thrust off until she has settled into her flight station.
-    if (S.launching === 'rising') { updateLaunchRise(dt); return; }
+    if (S.launching === 'blast') { updateLaunchBlast(dt); return; }
     if (S.launching === 'kick') {
       S.launchT += dt;
-      S.launchKick = LAUNCH_X_KICK * Math.max(0, 1 - S.launchT / LAUNCH_KICK_TIME);
+      // launchKick starts at the tip's own offset (set in updateLaunchBlast,
+      // matching where she was just revealed) and ramps up to the full
+      // LAUNCH_X_KICK swing over LAUNCH_REVEAL_FADE — in step with her
+      // fading into view in draw() — before decaying back to 0 for the rest
+      // of the kick as she settles into her flight station.
+      const tipOffsetX = CANNON_X_OFFSET + CANNON_TIP.dx;
+      S.launchKick = S.launchT < LAUNCH_REVEAL_FADE
+        ? tipOffsetX + (LAUNCH_X_KICK - tipOffsetX) * (S.launchT / LAUNCH_REVEAL_FADE)
+        : LAUNCH_X_KICK * Math.max(0, 1 - (S.launchT - LAUNCH_REVEAL_FADE) / (LAUNCH_KICK_TIME - LAUNCH_REVEAL_FADE));
       if (S.launchT >= LAUNCH_KICK_TIME) {
         S.launching = null;
         S.launchKick = 0;
-        // launchT stops advancing the instant 'kick' ends, but drawLaunchBlast()
-        // keeps being called every frame for the rest of the run (see the
-        // `else` branch in draw()) — the 7-frame strip finishes well within
-        // LAUNCH_KICK_TIME on its own, but clearing the flag here too means
-        // there's no state left over for a frozen clock to strand mid-play.
-        S.blastActive = false;
       }
     }
 
@@ -1321,23 +1326,6 @@
           burst(e.x, e.y, '#a78bfa', 10);
         }
       } else if (e.t === 'zapper_v') {
-        // Once per beam, well before it enters her lane — a real heads-up
-        // ahead of the hit, not a repeated alarm while it lingers nearby.
-        // Widened from 140/120: a thin 13px-wide vertical beam scrolling in
-        // at full speed closed that gap in under half a second, which read
-        // as a hit with no warning at all.
-        //
-        // X-distance only now — it used to also require the player's
-        // CURRENT y to already be near the beam's y. That was fine standing
-        // still, but a fast dive (up to 1050px/s) can cross the old 160px
-        // y-band in under 0.06s, so the warning and the hit landed close
-        // enough together to read as no warning at all. Diving into a
-        // beam's lane should still get the same heads-up as flying level
-        // into one, not less.
-        if (!e.warned && Math.abs(e.x - px) < 260) {
-          e.warned = true;
-          playSfx('zapperNear');
-        }
         if (!e.hitCooldown && hitsRect(px, S.planeY, pr, e)) {
           e.hitCooldown = 0.6;
           if (S.shield) {
@@ -1465,20 +1453,21 @@
     for (const e of S.ents) drawEntity(e);
     drawParticles();
     // Once she is down, she sinks out of sight and the portrait replaces
-    // her — see beginDeath(). Symmetrically, a run opens with her behind
-    // the same line next to the cannon — see start()/updateLaunchRise().
+    // her — see beginDeath(). Symmetrically, a run opens with the cannon
+    // firing immediately — see start()/updateLaunchBlast().
     if (S.dying === 'sink') {
       drawDeathSink();
-    } else if (S.launching === 'rising') {
-      drawLaunchRise();
     } else {
-      // Right after firing she stays hidden inside the blast for a beat —
-      // see LAUNCH_REVEAL_DELAY — then fades in over LAUNCH_REVEAL_FADE
-      // rather than popping in whole on the one frame that unblocks her.
-      if (S.launching !== 'kick' || S.launchT >= LAUNCH_REVEAL_DELAY) {
+      // She's hidden entirely through 'blast' (see updateLaunchBlast()) —
+      // nothing to draw of her yet, the explosion below is the whole show.
+      // Once real 'kick' physics takes over she fades in over
+      // LAUNCH_REVEAL_FADE, in step with launchKick ramping up from the
+      // tip's own offset (see the 'kick' branch in update()), rather than
+      // popping in whole already mid-launch.
+      if (S.launching !== 'blast') {
         ctx.save();
         ctx.globalAlpha = S.launching === 'kick'
-          ? Math.min(1, (S.launchT - LAUNCH_REVEAL_DELAY) / LAUNCH_REVEAL_FADE)
+          ? Math.min(1, S.launchT / LAUNCH_REVEAL_FADE)
           : 1;
         drawPlane();
         drawShield();   // over her, so it reads as a bubble she is sitting inside
@@ -1506,14 +1495,14 @@
   }
 
   // Just the deck line itself, split out of drawFloor() so drawDeathSink()
-  // and drawLaunchRise() can repaint it on top of her once she is drawn —
-  // otherwise the clipped reveal still draws over the line where the two
-  // meet, and she reads as standing in front of it rather than behind it.
+  // can repaint it on top of her once she is drawn — otherwise the clipped
+  // reveal still draws over the line where the two meet, and she reads as
+  // standing in front of it rather than behind it.
   function drawDeckLine() {
     const hot = S.grounded && !S.over;
     ctx.strokeStyle = hot ? 'rgba(255,77,109,.95)' : 'rgba(255,43,214,.45)';
     ctx.lineWidth = hot ? 4 : 2;
-    if (hot) { ctx.shadowColor = '#ff4d6d'; ctx.shadowBlur = 22; }
+    if (hot && !isTouch) { ctx.shadowColor = '#ff4d6d'; ctx.shadowBlur = 22; }
     ctx.beginPath(); ctx.moveTo(0, FLOOR + 18); ctx.lineTo(W, FLOOR + 18); ctx.stroke();
     ctx.shadowBlur = 0;
   }
@@ -1524,8 +1513,20 @@
     const hot = S.grounded && !S.over;
     drawDeckLine();
 
-    ctx.strokeStyle = hot ? 'rgba(255,77,109,.22)' : 'rgba(255,43,214,.14)';
-    ctx.lineWidth = 1;
+    // The underside of the deck: a solid panel from the line down past the
+    // visible bottom, so the strip below the line reads as structure —
+    // ship hull, not empty sky repeating past an arbitrary line. Only the
+    // near end (close to the line) is ever actually visible at rest; it's
+    // the sparse, near-invisible perspective lines alone that used to leave
+    // that band looking like plain, unfilled background.
+    const underGrad = ctx.createLinearGradient(0, FLOOR + 18, 0, FLOOR + 18 + 90);
+    underGrad.addColorStop(0, hot ? 'rgba(255,77,109,.3)' : 'rgba(255,43,214,.22)');
+    underGrad.addColorStop(1, 'rgba(5,3,11,.92)');
+    ctx.fillStyle = underGrad;
+    ctx.fillRect(0, FLOOR + 18, W, 90);
+
+    ctx.strokeStyle = hot ? 'rgba(255,77,109,.45)' : 'rgba(255,43,214,.32)';
+    ctx.lineWidth = 1.4;
     const off = S.scrolled % 80;
     // Run the perspective lines well past the old screen height: with the
     // camera raised, world Y = H is no longer the bottom of the view.
@@ -1539,7 +1540,15 @@
     // No ceiling line any more — there is no ceiling.
   }
 
+  // shadowBlur is one of the most expensive Canvas2D operations there is,
+  // and glow() is called for nearly everything on screen — every hazard,
+  // pickup, and the plane itself, every frame. Cheap on a desktop GPU;
+  // compounds badly on a phone. isTouch is already a reasonable proxy for
+  // "probably weaker hardware", so skip the blur there and keep the shape
+  // itself, rather than losing the glow look everywhere to fix it for
+  // everyone.
   function glow(color, blur, fn) {
+    if (isTouch) { fn(); return; }
     ctx.save();
     ctx.shadowColor = color;
     ctx.shadowBlur = blur;
@@ -1677,11 +1686,15 @@
            two rates so it crackles instead of throbbing. */
         const flick = 0.78 + Math.sin(S.t * 27) * 0.14 + Math.sin(S.t * 9) * 0.08;
         const len = e.h;
+        // Four shadowBlur calls per beam plus two more for the emitters —
+        // with several zappers on screen that's dozens of blur passes a
+        // frame, one of the heaviest things Canvas2D can be asked to do.
+        // Skipped on isTouch (see glow()) — the beam still fully renders,
+        // just without the bloom.
         const beam = (thick, color, alpha, blur) => {
           ctx.save();
           ctx.globalAlpha = alpha * flick;
-          ctx.shadowColor = color;
-          ctx.shadowBlur = blur;
+          if (!isTouch) { ctx.shadowColor = color; ctx.shadowBlur = blur; }
           ctx.fillStyle = color;
           ctx.fillRect(e.x - thick / 2, e.y - len / 2, thick, len);
           ctx.restore();
@@ -1693,8 +1706,7 @@
 
         // Emitters at both ends, so the ray reads as fired from something.
         ctx.save();
-        ctx.shadowColor = '#ff1030';
-        ctx.shadowBlur = 14;
+        if (!isTouch) { ctx.shadowColor = '#ff1030'; ctx.shadowBlur = 14; }
         ctx.fillStyle = '#ff5566';
         ctx.fillRect(e.x - 13, e.y - len / 2 - 8, 26, 10);
         ctx.fillRect(e.x - 13, e.y + len / 2 - 2, 26, 10);
@@ -1725,12 +1737,14 @@
   }
 
   // One tongue of flame: a leaf shape tapering from the nozzle to a point.
+  // Runs every frame she has fuel, so its shadowBlur is skipped on isTouch
+  // (see glow()) same as everything else — this one's on-screen constantly,
+  // not just while a hazard happens to be nearby.
   function flameTongue(len, halfW, color, blur, alpha) {
     const n = flameNozzle();
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = blur;
+    if (!isTouch) { ctx.shadowColor = color; ctx.shadowBlur = blur; }
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(n.x, n.y - halfW);
@@ -1755,51 +1769,20 @@
     flameTongue(len * 0.32, f.halfW * 0.40, f.core,   8, 0.95);
   }
 
-  // The opening beat: a charge glow blooms at the cannon's muzzle and she
-  // materializes there — not rising up from the deck, but appearing right
-  // at the barrel's tip, growing in alongside the charge meter filling.
-  // Once the cannon fires (see updateLaunchRise()), S.launching moves to
-  // 'kick' and drawPlane() takes over from wherever this left her.
-  function drawLaunchRise() {
-    const x = PLANE_X + CANNON_X_OFFSET + CANNON_TIP.dx;
-    const y = FLOOR + CANNON_TIP.dy;
-    const ease = (p) => p * p * (3 - 2 * p);
-    const p = ease(Math.min(1, S.launchT / LAUNCH_RISE_TIME));
-
-    ctx.save();
-    ctx.globalAlpha = 0.4 + p * 0.6;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, 10 + p * 26);
-    g.addColorStop(0, 'rgba(255,255,255,.9)');
-    g.addColorStop(0.4, 'rgba(0,240,255,.55)');
-    g.addColorStop(1, 'rgba(0,240,255,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x, y, 10 + p * 26, 0, 6.2832);
-    ctx.fill();
-    ctx.restore();
-
-    if (p > 0.15) {
-      const scaleP = (p - 0.15) / 0.85;
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, scaleP * 1.4);
-      ctx.translate(x, y);
-      ctx.rotate(CANNON_ANGLE);   // aligned down the barrel, not upright
-      ctx.scale(0.3 + scaleP * 0.7, 0.3 + scaleP * 0.7);
-      sprite('plane', 0, 0);
-      ctx.restore();
-    }
-  }
-
   function drawPlane() {
     const x = PLANE_X + S.launchKick, y = S.planeY;
     const normalTilt = Math.max(-0.5, Math.min(0.5, S.vel / 1400));
-    // Right after the cannon fires she is aligned to the barrel, not to her
+    // Right after the cannon fires she leans toward the barrel, not her
     // velocity — this blends that into the normal bank angle over the same
     // curve the sideways kick already eases out on, so both settle together.
+    // Only a fraction of the full CANNON_ANGLE (~46°) — the actual launch is
+    // straight up (LAUNCH_VEL has no horizontal component at all), so the
+    // full barrel angle read as a much more diagonal jump than she's really
+    // making; this keeps the lean as a hint of the barrel, not the pose.
     let tilt = normalTilt;
     if (S.launching === 'kick') {
       const kickP = Math.min(1, Math.abs(S.launchKick / LAUNCH_X_KICK));
-      tilt = CANNON_ANGLE * kickP + normalTilt * (1 - kickP);
+      tilt = CANNON_ANGLE * 0.4 * kickP + normalTilt * (1 - kickP);
     }
 
     ctx.save();
@@ -1858,8 +1841,7 @@
     const d = SHIELD_SIZE * pulse;
     ctx.save();
     ctx.globalAlpha = 0.55 + Math.sin(S.t * 6) * 0.08;
-    ctx.shadowColor = '#c9a2ff';
-    ctx.shadowBlur = 20;
+    if (!isTouch) { ctx.shadowColor = '#c9a2ff'; ctx.shadowBlur = 20; }
     if (SPRITES.ball.ready) {
       ctx.drawImage(SPRITES.ball.img, PLANE_X - d / 2, S.planeY - d / 2, d, d);
     } else {
@@ -1996,10 +1978,11 @@
 
   // The cannon's muzzle blast — the real explosion sprite (SPRITES.launchBlast,
   // a 7-frame strip), played once from the barrel tip the instant it fires.
-  // S.launchT is already the kick's own clock (reset to 0 at the same moment
-  // — see updateLaunchRise()), so it also picks which frame shows: frameIndex
-  // is pinned here rather than left to the sheet's own wall-clock cycling,
-  // since this has to play through exactly once, not loop.
+  // S.launchT is already the 'blast' phase's own clock (reset to 0 the
+  // instant start() fires the cannon), so it also picks which frame shows:
+  // frameIndex is pinned here rather than left to the sheet's own
+  // wall-clock cycling, since this has to play through exactly once, not
+  // loop.
   function drawLaunchBlast() {
     if (!S.blastActive) return;
     // Anchored to the cannon ENTITY's own x/y, not a fixed screen point —
@@ -2035,8 +2018,7 @@
     ctx.fill();
     ctx.strokeStyle = 'rgba(0,240,255,.55)';
     ctx.lineWidth = 1.4;
-    ctx.shadowColor = 'rgba(0,240,255,.35)';
-    ctx.shadowBlur = 8;
+    if (!isTouch) { ctx.shadowColor = 'rgba(0,240,255,.35)'; ctx.shadowBlur = 8; }
     ctx.stroke();
     ctx.restore();
   }
@@ -2115,8 +2097,7 @@
     g.save();
     g.translate(cx, cy);
     g.rotate(a);
-    g.shadowColor = '#ffb43c';
-    g.shadowBlur = 8;
+    if (!isTouch) { g.shadowColor = '#ffb43c'; g.shadowBlur = 8; }
     g.fillStyle = '#ffb43c';
     g.beginPath();
     g.moveTo(r - 9, 0);
@@ -2260,7 +2241,7 @@
       ctx.save();
       ctx.globalAlpha = fill;
       ctx.fillStyle = color;
-      if (fill > 0.5) { ctx.shadowColor = color; ctx.shadowBlur = 10; }
+      if (fill > 0.5 && !isTouch) { ctx.shadowColor = color; ctx.shadowBlur = 10; }
       ctx.beginPath();
       ctx.moveTo(cx, cy + r * 0.85);
       ctx.bezierCurveTo(cx - r * 1.5, cy - r * 0.35, cx - r * 0.55, cy - r * 1.15, cx, cy - r * 0.35);
@@ -2278,7 +2259,7 @@
   const ovBody  = document.getElementById('ov-body');
   const ovBtn   = document.getElementById('ov-btn');
   const ovKeys  = overlay ? overlay.querySelector('.keys') : null;
-  if (ovKeys && isTouch) ovKeys.textContent = 'Tap to activate flying';
+  if (ovKeys && isTouch) ovKeys.textContent = 'tap to activate flying';
 
   /* ---------------------------- music -----------------------------------
      Plays from Start Run to the results screen (see start()/finish() below),
@@ -2396,8 +2377,15 @@
 
   function start() {
     reset();
-    S.launching = 'rising';
     S.ents.push({ t: 'cannon', x: PLANE_X + CANNON_X_OFFSET, y: FLOOR, dead: false });
+    // No charge-up beat before it fires any more — she launches on the real
+    // explosion sprite alone, not a hand-drawn glow first. See
+    // updateLaunchBlast() for what happens once the blast finishes.
+    S.launching = 'blast';
+    playSfx('trampBoost');
+    burst(PLANE_X + CANNON_X_OFFSET + CANNON_TIP.dx, FLOOR + CANNON_TIP.dy, '#39ff6a', 16);
+    S.blastActive = true;
+    S.shake = Math.min(14, S.shake + 10);
     overlay.classList.add('hidden');
     ovBtn.dataset.action = 'restart';
     running = true;
@@ -2458,8 +2446,21 @@
   // (keyup-triggered) activation and suppress it.
   const startBlockedByFocusOn = () => [ovBtn, muteBtn].includes(document.activeElement);
 
+  // These keys are bound on `window`, not the canvas, so without this check
+  // a run left playing while she scrolls off to read the rest of the page
+  // still eats every Space/arrow press meant for scrolling the page —
+  // silently thrusting (and, worse, now audibly cueing it) with nothing
+  // on screen to explain why. Scoped to whether the canvas is in view at
+  // all, not whether it has focus — clicking into the game never moves
+  // focus onto it, so a focus check would just reintroduce the same bug.
+  function gameVisible() {
+    const r = canvas.getBoundingClientRect();
+    return r.bottom > 0 && r.top < window.innerHeight;
+  }
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+      if (!gameVisible()) return;   // let the page scroll normally when she's off-screen
       if (!running) {
         if (canStartNow() && !startBlockedByFocusOn()) {
           start();
