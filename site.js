@@ -34,30 +34,36 @@
   });
 
   /* -------------------------- case-study dot nav --------------------------
-     The floating rail next to the Cases section: visible only while a case
-     article is actually on screen, with the dot for whichever one is most in
-     view lit up. One observer does both jobs — the section's own visibility
-     drives .is-visible on the rail, and each article's visibility drives
-     .is-active on its matching dot. */
+     The floating rail spanning Games and Cases: visible while any of its
+     data-sections is on screen, with the dot for whichever article is most
+     in view lit up. Its scope (data-sections="games cases") lets one rail
+     cover articles split across multiple <section>s. */
 
-  const caseDots = document.querySelector('.case-dots');
-  const caseSection = document.getElementById('cases');
-  const caseArticles = document.querySelectorAll('#cases article[id]');
+  if ('IntersectionObserver' in window) {
+    document.querySelectorAll('.case-dots').forEach((dots) => {
+      const sectionIds = (dots.dataset.sections || '').trim().split(/\s+/).filter(Boolean);
+      const sections = sectionIds.map((id) => document.getElementById(id)).filter(Boolean);
+      const articles = sections.flatMap((s) => Array.from(s.querySelectorAll('article[id]')));
+      if (!sections.length || !articles.length) return;
 
-  if (caseDots && caseSection && caseArticles.length && 'IntersectionObserver' in window) {
-    const sectionObserver = new IntersectionObserver(
-      ([entry]) => caseDots.classList.toggle('is-visible', entry.isIntersecting),
-      { rootMargin: '-45% 0px -45% 0px' }
-    );
-    sectionObserver.observe(caseSection);
+      const visibleSections = new Set();
+      const sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) visibleSections.add(entry.target);
+          else visibleSections.delete(entry.target);
+        });
+        dots.classList.toggle('is-visible', visibleSections.size > 0);
+      }, { rootMargin: '-45% 0px -45% 0px' });
+      sections.forEach((section) => sectionObserver.observe(section));
 
-    const dotFor = (id) => caseDots.querySelector(`[data-case="${id}"]`);
-    const articleObserver = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        const dot = dotFor(entry.target.id);
-        if (dot) dot.classList.toggle('is-active', entry.isIntersecting);
-      });
-    }, { rootMargin: '-45% 0px -45% 0px' });
-    caseArticles.forEach((article) => articleObserver.observe(article));
+      const dotFor = (id) => dots.querySelector(`[data-case="${id}"]`);
+      const articleObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const dot = dotFor(entry.target.id);
+          if (dot) dot.classList.toggle('is-active', entry.isIntersecting);
+        });
+      }, { rootMargin: '-45% 0px -45% 0px' });
+      articles.forEach((article) => articleObserver.observe(article));
+    });
   }
 })();

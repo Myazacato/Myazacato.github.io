@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=150">
+<link rel="stylesheet" href="style.css?v=153">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
@@ -27,6 +27,7 @@
     <a href="#games">Games</a>
     <a href="#cases">Cases</a>
     <a href="#contact">Contact</a>
+    <a href="https://www.instagram.com/catoyoart/" target="_blank" rel="noopener">Art</a>
   </nav>
 </header>
 
@@ -38,9 +39,9 @@
       <p class="eyebrow">Product/web designer &middot; Game Design &middot; UI illustration</p>
       <h1>Carolina<br>Toyoshima</h1>
       <p class="lede">
-        Designer living in Lisbon. I love solving problems and working on
-        projects that are genuinely interesting &mdash; <em>Diana</em> is one
-        of them, a delivery roguelite in Godot&nbsp;4 you can play right here.
+        I turn complicated problems into visual experiences people love
+        using. In my free time I do illustrations, play and make games, and
+        try to keep my plants alive.
       </p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#play">Play in your browser</a>
@@ -64,8 +65,8 @@
       <h2>Playable demo</h2>
       <p class="section-sub">
         Play the core gameplay loop of <em>Diana</em>, rebuilt in plain
-        JavaScript so it runs instantly on any device &mdash; no plugin, no download.
-        The full game is built in Godot&nbsp;4.
+        JavaScript so it runs instantly. The full game is built in
+        Godot&nbsp;4.
       </p>
     </div>
 
@@ -132,12 +133,6 @@
 
       </div>
     </div>
-    <p class="fineprint">
-      Music: Wagner's <em>Ride of the Valkyries</em>, conducted by Philip
-      Milman, from
-      <a href="https://www.classicals.de/wagner-valkyrie">classicals.de</a>
-      (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY</a>).
-    </p>
   </section>
 
   <!-- ============ GAMES ============ -->
@@ -147,24 +142,42 @@
       <h2>Games</h2>
     </div>
 
-    <article class="case">
+    <!-- Fixed to the viewport, not the section — visible across both Games
+         and Cases (see data-sections), so it works as one rail spanning
+         every article on the page. See the IntersectionObserver in site.js. -->
+    <nav class="case-dots" aria-label="Jump to a game or case study" data-sections="games cases">
+      <a href="#case-diana" class="case-dot" data-case="case-diana">
+        <span class="dot-mark"></span><span class="dot-label">Diana</span>
+      </a>
+      <a href="#case-entrelacos" class="case-dot" data-case="case-entrelacos">
+        <span class="dot-mark"></span><span class="dot-label">Entrela&ccedil;os</span>
+      </a>
+      <a href="#case-pixel-party" class="case-dot" data-case="case-pixel-party">
+        <span class="dot-mark"></span><span class="dot-label">Pixel Party</span>
+      </a>
+      <a href="#case-nia" class="case-dot" data-case="case-nia">
+        <span class="dot-mark"></span><span class="dot-label">Nia</span>
+      </a>
+      <a href="#case-uds" class="case-dot" data-case="case-uds">
+        <span class="dot-mark"></span><span class="dot-label">Unified Design System</span>
+      </a>
+    </nav>
+
+    <article class="case" id="case-diana">
       <div class="case-head">
         <div>
           <h3>Diana</h3>
-          <p class="case-tag">Side-scrolling delivery roguelite &middot; Solo project &middot; In development</p>
+          <p class="case-tag">Side-scrolling delivery roguelite &middot; In development</p>
         </div>
         <ul class="stack">
           <li>Godot 4.6</li>
-          <li>GDScript</li>
-          <li>~2,700 LOC</li>
+          <li>Game Balancing</li>
+          <li>Assets and UI</li>
         </ul>
       </div>
 
       <p class="case-lede">
-        You fly cargo down a hostile lane for a dispatch office that will not
-        tell you what is in the crates. The twist is that surviving the run and
-        <em>delivering well</em> are two different skills &mdash; and the game pays
-        you for the second one.
+        Diana is a side-scrolling delivery roguelike, currently in production.
       </p>
 
       <h4>The loop</h4>
@@ -175,86 +188,47 @@
         pay against faster fuel burn and a longer lane.
       </p>
 
+      <p>
+        Built fast with Claude Code as an MVP, then balanced through early
+        playtester feedback &mdash; the clearest signal was new players losing
+        the thread in the opening seconds. Every asset and UI element is
+        hand-made by me.
+      </p>
+
       <h4>Design decisions I&rsquo;d defend in an interview</h4>
 
       <div class="cards">
         <div class="card">
-          <span class="card-tag">LEVEL DESIGN</span>
-          <h5>Authored chunks, not random spawners</h5>
-          <p>
-            The lane emits hand-built obstacle patterns one at a time on
-            distance, rather than firing independent random spawners on timers.
-            That is what gives a run a readable <em>rhythm</em> instead of uniform
-            noise. Coins are the pathing language &mdash; they trace the line you
-            are meant to fly, or bait you into a worse one. They are never
-            scattered at random.
-          </p>
-        </div>
-
-        <div class="card">
           <span class="card-tag">PACING</span>
-          <h5>Forced breathers</h5>
+          <h5>Teaching the lane without a tutorial</h5>
           <p>
-            Every third chunk is guaranteed to be difficulty zero &mdash; no
-            hazards at all. Pressure needs somewhere to release, otherwise a long
-            run reads as one flat wall of stress and players stop registering the
-            spikes.
-          </p>
-        </div>
-
-        <div class="card">
-          <span class="card-tag">ECONOMY</span>
-          <h5>One letter tells the whole story</h5>
-          <p>
-            Cargo degrades from hazard hits, hard bounces and sustained high-G
-            flying. The delivery grade (S&ndash;F) drives <em>both</em> the payout
-            share and the reputation gained &mdash; so the letter on the results
-            screen is the entire outcome, not a label sitting next to a separate
-            calculation. Coins are deliberately excluded from grade scaling: a
-            battered run still keeps what it picked up.
+            Hand-authored patterns, not random spawners, give each run a
+            readable rhythm. Coins trace the line you&rsquo;re meant to fly
+            &mdash; added after playtesters got lost with no tutorial to
+            lean on. Difficulty ramps fast, then climbs with no plateau,
+            with hazard-free stretches so pressure never flattens into
+            stress.
           </p>
         </div>
 
         <div class="card">
           <span class="card-tag">PROGRESSION</span>
-          <h5>Slot scarcity forces identity</h5>
+          <h5>One signal instead of scattered stats</h5>
           <p>
-            Thirty-one permanent modules across eight tags &mdash; but only two
-            bays to start, five at most, with extra bays priced steeply. You
-            cannot own the board. Scarcity is what turns a shopping list into a
-            build.
+            The delivery grade (S&ndash;F) drives both payout and reputation,
+            so one letter is the entire outcome. Only two module bays are
+            open at the start, forcing real trade-offs. The shop rotates
+            five offers, not a full catalogue, so every purchase is a real
+            choice.
           </p>
         </div>
 
         <div class="card">
-          <span class="card-tag">SHOP</span>
-          <h5>Five offers, not a catalogue</h5>
+          <span class="card-tag">ART</span>
+          <h5>Hand-made, not generated</h5>
           <p>
-            The depot shows a fixed five offers that rotate after each run, with
-            a rising reroll cost. You meet the catalogue a few items at a time,
-            so buying one is a real choice under uncertainty rather than
-            optimisation against a full menu.
-          </p>
-        </div>
-
-        <div class="card">
-          <span class="card-tag">DIFFICULTY</span>
-          <h5>A curve with no plateau</h5>
-          <p>
-            Scroll speed ramps fast, eases into a shoulder that keeps the opening
-            readable, then creeps upward forever. Every run ends because the lane
-            eventually outruns you &mdash; there is no speed you can settle into.
-          </p>
-        </div>
-
-        <div class="card">
-          <span class="card-tag">UI</span>
-          <h5>One colour language everywhere</h5>
-          <p>
-            Blue always means one-use, purple always means permanent &mdash; in
-            the shop, in the loadout screen and on the in-flight hotbar. The
-            hotbar keys live in a single constant so three separate screens can
-            never disagree about which key fires which slot.
+            Every asset was drawn by hand instead of generated, for a look
+            that feels specific to this game instead of generic.
           </p>
         </div>
 
@@ -262,9 +236,10 @@
           <span class="card-tag">FEEDBACK</span>
           <h5>Modules that show their work</h5>
           <p>
-            Each slotted module gets a chip in the HUD, dim until it actually
-            does something. Always-on modules stay lit; triggered ones flash on
-            fire. You can see your build working instead of trusting a tooltip.
+            Each equipped module gets a chip in the HUD, dim until it does
+            something &mdash; always-on stays lit, triggered flashes on
+            fire. Players see their build working instead of trusting a
+            tooltip.
           </p>
         </div>
       </div>
@@ -277,7 +252,7 @@
       </div>
     </article>
 
-    <article class="case">
+    <article class="case" id="case-entrelacos">
       <div class="case-head">
         <div>
           <h3>Entrela&ccedil;os</h3>
@@ -297,34 +272,38 @@
       </div>
 
       <p class="case-lede">
-        Brazil is the largest mobile gaming market in Latin America and an
-        Android-first country &mdash; over 80% platform share. Yet its players
-        (70% self-identified &ldquo;casual&rdquo;) are stuck between culturally
-        distant NYT-style puzzles and loud, ad-stuffed clones machine-translated
-        into generic PT-PT. I saw a gap: a quiet, locally-fluent word game built
+        Brazil is the largest mobile gaming market in Latin America, yet its
+        players (70% self-identified &ldquo;casual&rdquo;) are stuck between
+        culturally distant NYT-style puzzles and loud, ad-stuffed clones in
+        generic PT-PT. I saw a gap: a quiet, locally-fluent word game built
         for the <em>micro-moment</em> &mdash; the two minutes in a queue, the
-        morning coffee &mdash; as players pivot away from doomscrolling toward
-        calmer play.
+        morning coffee.
       </p>
 
       <h4>The craft &mdash; a &ldquo;low-dopamine&rdquo; design language</h4>
       <p>
-        Every visual decision was made to be the opposite of slot-machine
-        gaming UI. I chose <strong>neobrutalist minimalism</strong>: high
-        contrast, low saturation, raw borders, honest typography. No glossy
-        bubbles, no neon, no confetti. The interface gets out of the way so
-        the only thing lighting up is the player&rsquo;s own logic.
+        Every visual decision opposes slot-machine gaming UI. I chose
+        <strong>neobrutalist minimalism</strong>: high contrast, low
+        saturation, raw borders, honest typography &mdash; no glossy bubbles,
+        no neon, no confetti. The interface gets out of the way so only the
+        player&rsquo;s own logic lights up.
       </p>
 
       <h4>Killing the wireframe</h4>
       <p>
         Instead of weeks in Figma auto-layout, I prototyped functionally with
         AI-assisted coding in Google AI Studio. Logic games live or die on
-        feel, so I needed to play them, not look at them &mdash; testing
-        whether a &ldquo;snap&rdquo; felt rewarding, whether the haptics were
-        too aggressive for a calm game, and hand-tuning difficulty across 21
-        levels to find the flow state between boredom and anxiety.
+        feel, so I played them, not just looked at them &mdash; tuning the
+        &ldquo;snap,&rdquo; the haptics, and difficulty across 21 levels to
+        find the flow state between boredom and anxiety.
       </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/entrelacos-sketches.jpg"
+             alt="Handwritten notebook sketches for Entrelaços, the earliest ideation before any screen"
+             loading="lazy" width="3544" height="2658">
+        <figcaption>Where it actually started &mdash; paper, before any screen.</figcaption>
+      </figure>
 
       <h4>Testing that changed the product</h4>
       <p>
@@ -362,25 +341,35 @@
 
       <h4>Motion &amp; the web build</h4>
       <p>
-        The game is playable directly in the browser &mdash; I designed the
-        web experience around it, so anyone can start in one click with no
-        install. Motion does real work throughout: a satisfying snap when
-        four words lock into a group, smooth reveal transitions as each
-        category resolves, and soft feedback states for near-misses and wrong
-        guesses &mdash; tuned to reward the solve without overstimulating,
-        true to the low-dopamine goal.
+        The game is playable directly in the browser, no install needed.
+        Motion does real work: a satisfying snap when four words lock into a
+        group, smooth reveal transitions, and soft feedback for near-misses
+        &mdash; tuned to reward the solve without overstimulating.
       </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/entrelacos-screens.png"
+             alt="The finished Entrelaços interface: the home screen, the onboarding tutorial, and a level in progress"
+             loading="lazy" width="1661" height="1084">
+        <figcaption>The finished interface: home, onboarding, and a level in progress.</figcaption>
+      </figure>
 
       <h4>Outcome &amp; north star</h4>
       <p>
-        Live on Google Play (publisher: Myaza) and playable on the web. The
-        core success signal is <strong>session completion rate</strong> &mdash;
-        is the game becoming a quiet daily ritual rather than another
-        notification? This project marks how I work now: when AI turns the
-        <em>how</em> of building into a commodity, the designer&rsquo;s value
-        moves to the <em>what</em> and the <em>why</em> &mdash; the feel of
-        the interaction and respect for the player&rsquo;s time.
+        Live on Google Play and playable on the web. The core success signal
+        is <strong>session completion rate</strong>: is this becoming a
+        quiet daily ritual, not another notification? It&rsquo;s also proof
+        of how I work now &mdash; AI handles the <em>how</em>, so the
+        designer&rsquo;s value moves to the <em>what</em> and the
+        <em>why</em>.
       </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/entrelacos-play-store.jpg"
+             alt="Entrelaços live on Google Play"
+             loading="lazy" width="1107" height="903">
+        <figcaption>Live on Google Play.</figcaption>
+      </figure>
     </article>
   </section>
 
@@ -394,25 +383,6 @@
       </p>
     </div>
 
-    <!-- Fixed to the viewport, not the section — only shown while a case
-         article is actually on screen (see the IntersectionObserver in
-         site.js). Each dot's label is hidden until hovered/focused, so it
-         reads as a quiet rail rather than a second, competing menu. -->
-    <nav class="case-dots" aria-label="Jump to a case study">
-      <a href="#case-pixel-party" class="case-dot" data-case="case-pixel-party">
-        <span class="dot-mark"></span><span class="dot-label">Pixel Party</span>
-      </a>
-      <a href="#case-cloudya" class="case-dot" data-case="case-cloudya">
-        <span class="dot-mark"></span><span class="dot-label">Cloudya Onboarding</span>
-      </a>
-      <a href="#case-nia" class="case-dot" data-case="case-nia">
-        <span class="dot-mark"></span><span class="dot-label">Nia</span>
-      </a>
-      <a href="#case-uds" class="case-dot" data-case="case-uds">
-        <span class="dot-mark"></span><span class="dot-label">Unified Design System</span>
-      </a>
-    </nav>
-
     <article class="case" id="case-pixel-party">
       <div class="case-head">
         <div>
@@ -425,22 +395,24 @@
       </div>
 
       <p class="case-lede">
-        Finding people to play with online is easy; finding the
-        <em>right</em> people isn&rsquo;t &mdash; research shows over 80% of
-        matches carry verbal abuse (Polygon). Pixel Party is a cross-platform
-        LFP tool that lets gamers spin up a session &mdash; casual co-op,
-        ranked, or an in-person board-game night &mdash; in minutes, without
-        the endless group-chat back-and-forth.
+        Finding people to play with online is easy. Finding people worth
+        playing with is harder: over 80% of matches carry verbal abuse
+        (Polygon). Pixel Party is a cross-platform LFP tool that lets gamers
+        spin up a casual co-op, ranked, or in-person board-game session in
+        minutes, no group-chat back-and-forth.
       </p>
 
       <h4>Visual language</h4>
       <p>
-        I pulled cues straight from gaming interfaces: bold colour contrast,
-        clean typography for fast readability, and subtle motion to make the
-        flow feel alive. Microcopy was rewritten to be short, active and
-        game-friendly &mdash; the product should feel like starting a match,
-        not filling out a form.
+        I pulled cues from gaming interfaces: bold colour contrast, clean
+        typography, subtle motion. Microcopy was rewritten short and active,
+        so the product feels like starting a match, not filling out a form.
       </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/pixelparty-research.png" alt="Competitive and cultural reference board for Pixel Party: gaming, chat, and event apps mined for tone and pattern" loading="lazy" width="1312" height="800">
+        <figcaption>Reference pull from gaming and social apps &mdash; tone and pattern before a single screen was drawn.</figcaption>
+      </figure>
 
       <h4>The flow, stripped to its core</h4>
       <p>
@@ -458,72 +430,35 @@
         <li>One-tap RSVP, no app download, with an optional &ldquo;Add to Calendar.&rdquo;</li>
       </ul>
 
+      <figure class="case-figure">
+        <img src="assets/art/pixelparty-roadmap.png" alt="Pixel Party process roadmap: discover, define, develop, deliver" loading="lazy" width="1312" height="800">
+        <figcaption>Discover, define, develop, deliver &mdash; wireframes to testing to hi-fi.</figcaption>
+      </figure>
+
+      <figure class="case-figure">
+        <img src="assets/art/pixelparty-feedback.png" alt="Synthesis of user testing feedback for Pixel Party: what worked, what needs improvement, open questions, and ideas" loading="lazy" width="1013" height="344">
+        <figcaption>Synthesizing what testers said &mdash; what worked, what didn&rsquo;t, what to build next.</figcaption>
+      </figure>
+
       <h4>Personas that anchored the decisions</h4>
       <p>
         The Competitive Connector, the Social Explorer and the Event Host
-        &mdash; each with a different tolerance for friction, which is
-        exactly what a polished onboarding had to absorb.
+        &mdash; three personas with different friction tolerances that shaped
+        the onboarding.
       </p>
 
       <h4>Outcome</h4>
       <p>
-        A validated high-fidelity concept with a clear success model &mdash;
-        DAU/MAU stickiness, event engagement (reactions, replies, RSVPs), and
-        polls created. The visual and interaction system leaves a clean
-        runway for tournaments and recurring events.
-      </p>
-    </article>
-
-    <article class="case" id="case-cloudya">
-      <div class="case-head">
-        <div>
-          <h3>Cloudya Onboarding</h3>
-          <p class="case-tag">Teaching a dense product to feel effortless, through motion &middot; Product Designer &middot; NFON (Cloudya)</p>
-        </div>
-        <ul class="stack">
-          <li>Figma (Smart Animate)</li>
-          <li>Lottie</li>
-          <li>Rive</li>
-        </ul>
-      </div>
-
-      <p class="case-lede">
-        Cloudya is a feature-dense B2B communications product, and first-run
-        is where dense products lose people. New users landed in a powerful
-        but unfamiliar interface with too much to absorb at once. I designed
-        an onboarding system that guides people to their first meaningful
-        action &mdash; using motion to carry attention instead of walls of
-        tooltip text.
+        A validated high-fidelity concept with a clear success model: DAU/MAU
+        stickiness, event engagement (reactions, replies, RSVPs), and polls
+        created. The system is built to extend into tournaments and
+        recurring events.
       </p>
 
-      <h4>Motion as guidance, not decoration</h4>
-      <ul>
-        <li>
-          Built lightweight, performant animations in <strong>Lottie</strong>
-          and <strong>Rive</strong> that ship to production &mdash; motion
-          that runs live in the real product, not just a prototype reel.
-        </li>
-        <li>
-          Prototyped and timed interactions in <strong>Figma Smart
-          Animate</strong> to nail pacing and easing before developer
-          handoff.
-        </li>
-        <li>
-          Used staged reveals that direct the eye one step at a time, cutting
-          cognitive load and letting users learn by doing rather than
-          reading.
-        </li>
-      </ul>
-
-      <h4>Impact</h4>
-      <p>Reduced first-run confusion and made the product feel approachable from the first screen.</p>
-
-      <h4>Why it matters here</h4>
-      <p>
-        This is production motion design &mdash; the same craft behind good
-        landing-page and campaign micro-interactions &mdash; tuned for
-        clarity and performance, not just polish.
-      </p>
+      <figure class="case-figure">
+        <img src="assets/art/pixelparty-screens.png" alt="High-fidelity Pixel Party screens: onboarding, game and date selection, and live polling" loading="lazy" width="2332" height="1296">
+        <figcaption>The validated hi-fi flow &mdash; onboarding, game picks, and the poll that settles the date.</figcaption>
+      </figure>
     </article>
 
     <article class="case" id="case-nia">
@@ -538,13 +473,31 @@
         </ul>
       </div>
 
+      <div class="case-preview">
+        <img src="assets/art/nia.gif" alt="Nia AI assistant widget in conversation, answering a support question" loading="lazy" width="416" height="666">
+      </div>
+
       <p class="case-lede">
-        NFON&rsquo;s move toward AI started with a customer-facing chatbot:
-        answer product and sales questions in minutes, not hours. I mapped
-        the support journey to find where fragmented information and
-        repetitive questions cost the most time &mdash; then designed Nia to
-        be the confident frontline, embedded across the web app and site.
+        NFON&rsquo;s move toward AI started with a customer-facing chatbot,
+        answering product and sales questions in minutes instead of hours. I
+        mapped the support journey to find where fragmented information and
+        repetitive questions cost the most time, then designed Nia as the
+        confident frontline, embedded across the web app and site.
       </p>
+
+      <h4>Built from real support tickets</h4>
+      <p>
+        Before any screen, I ran research directly with the support team: a
+        CSD matrix, structured interviews, and a full journey map of how a
+        Support Agent moves through a ticket, from first contact to closing
+        the issue. Their pain points and workarounds shaped the user story
+        Nia had to solve for.
+      </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/nia-user-research.png" alt="User research board for Nia: a CSD matrix, support-agent interview notes, and a journey map of a customer service ticket from contact to close" loading="lazy" width="9596" height="7164">
+        <figcaption>Support-agent journey map and interview notes &mdash; the research behind Nia&rsquo;s user story.</figcaption>
+      </figure>
 
       <h4>Design &amp; craft decisions</h4>
       <div class="cards">
@@ -561,17 +514,17 @@
           <span class="card-tag">VOICE</span>
           <h5>Tone as a design material</h5>
           <p>
-            Nia started robotic &mdash; &ldquo;Sorry, I can&rsquo;t answer
-            that,&rdquo; a dead end. Loosening the guardrails toward a
-            warmer, more natural voice measurably lifted satisfaction scores.
+            Nia started robotic, replying with dead ends like &ldquo;Sorry, I
+            can&rsquo;t answer that.&rdquo; Loosening the guardrails toward a
+            warmer, natural voice measurably lifted satisfaction scores.
           </p>
         </div>
         <div class="card">
           <span class="card-tag">RECOVERY</span>
           <h5>No dead ends</h5>
           <p>
-            Recovery paths &mdash; clarifying questions, docs, human
-            escalation &mdash; so the conversation always had a next step.
+            Clarifying questions, docs, and human escalation kept every
+            conversation moving instead of stalling out.
           </p>
         </div>
         <div class="card">
@@ -591,14 +544,18 @@
 
       <h4>Rollout &amp; impact</h4>
       <p>
-        We launched internally on Confluence first &mdash; one of the fastest
-        releases in NFON&rsquo;s history &mdash; to validate flows and
-        surface missing documentation before going public. &ldquo;Have you
-        asked Nia?&rdquo; became the office reflex for any question. The
-        result: measurable ticket deflection, resolution time cut from days
-        to minutes, and internal and external docs that improved directly
-        from real usage patterns.
+        We launched internally on Confluence first, one of the fastest
+        releases in NFON&rsquo;s history, to validate flows and surface
+        missing documentation before going public. &ldquo;Have you asked
+        Nia?&rdquo; became the office reflex. Ticket deflection rose,
+        resolution time dropped from days to minutes, and real usage
+        patterns drove direct improvements to internal and external docs.
       </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/nia-cross-platform.png" alt="Nia embedded in the NFON desktop app and running full-screen in the native iOS keyboard on mobile" loading="lazy" width="1996" height="1214">
+        <figcaption>Embedded everywhere &mdash; the desktop app and native mobile, not just the website.</figcaption>
+      </figure>
     </article>
 
     <article class="case" id="case-uds">
@@ -611,20 +568,44 @@
 
       <p class="case-lede">
         A token-based design system unifying a large legacy ecosystem across
-        web, iOS, Android, and a desktop admin portal &mdash; kicked off in a
-        hackathon with a design-to-AI-to-code workflow.
+        web, iOS, Android, and a desktop admin portal.
       </p>
+
+      <h4>The consistency problem</h4>
       <p>
-        I audited component libraries across every platform, standardised
-        structures alongside developers, and built a deliberately
-        <strong>platform-conscious</strong> system &mdash; not one-size-fits-all
-        &mdash; around four principles: Innovative, Helpful, Seamless,
-        Focused. A partial rollout on one product line delivered improved
-        visual consistency, faster development cycles from reusable
-        components, and a shared language between design and engineering.
-        Honest about scope: not yet company-wide, and Storybook coverage was
-        incomplete &mdash; but it proved the system could adapt under
-        changing constraints.
+        Components, colour, and patterns had drifted apart across every
+        product line. As a team, we ran a full audit of the platform&rsquo;s
+        consistency to see how far things had diverged and where to start
+        fixing it.
+      </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/uds-tokens.png" alt="Semantic design tokens for color, border, and size, with a selection-colors reference panel" loading="lazy" width="1670" height="942">
+        <figcaption>The semantic token layer &mdash; colour, border, and size, named by intent.</figcaption>
+      </figure>
+
+      <h4>Picking up where it started</h4>
+      <p>
+        When I arrived, the company already had an initial component
+        library, built by a designer before me. I updated it: auditing
+        components across every platform, standardising structures with
+        developers, and accounting for whitelabel variants, since the same
+        components had to reskin cleanly for different brands. From there, we
+        kicked off a hackathon around a design-to-AI-to-code workflow.
+      </p>
+
+      <figure class="case-figure">
+        <img src="assets/art/uds-components.png" alt="Component variants including buttons, checkboxes, toggles, and modal cards, shown in both light and dark whitelabel themes" loading="lazy" width="1920" height="1080">
+        <figcaption>Components built to reskin cleanly across whitelabel themes.</figcaption>
+      </figure>
+
+      <h4>Going live in Storybook</h4>
+      <p>
+        Built around four principles: Innovative, Helpful, Seamless, Focused.
+        A partial rollout on one product line improved visual consistency,
+        sped up development with reusable components, and gave design and
+        engineering a shared language. The system is now going live in
+        Storybook, with company-wide adoption still ahead.
       </p>
     </article>
   </section>
@@ -643,6 +624,7 @@
       <li><a href="#contact" data-email>Email</a></li>
       <li><a href="https://www.linkedin.com/in/ctoyoshima/">linkedin.com/in/ctoyoshima</a></li>
       <li><a href="https://github.com/Myazacato">github.com/Myazacato</a></li>
+      <li><a href="https://www.instagram.com/catoyoart/">instagram.com/catoyoart</a></li>
     </ul>
     <noscript>
       <p class="fineprint">
@@ -658,7 +640,7 @@
   <p>&copy; <span id="year"></span> Carolina Toyoshima &middot; Built by hand, no framework.</p>
 </footer>
 
-<script src="site.js?v=150"></script>
-<script src="demo.js?v=150"></script>
+<script src="site.js?v=153"></script>
+<script src="demo.js?v=153"></script>
 </body>
 </html>
