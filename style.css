@@ -727,7 +727,7 @@ kbd {
   white-space: nowrap;
 }
 
-.case-lede { font-size: 18px; color: var(--text); margin: 0 0 30px; max-width: 68ch; }
+.case-lede { font-size: 18px; font-weight: 600; color: var(--text); margin: 0 0 30px; max-width: 68ch; }
 .case-lede em { color: var(--magenta); font-style: normal; font-weight: 500; }
 
 /* A real screen recording of the game, floated beside the lede so copy
